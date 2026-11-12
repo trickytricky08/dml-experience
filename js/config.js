@@ -60,7 +60,7 @@ export const GAME_CONFIG = {
   modeId: "lineRush",
   title: "The DML Experience",
   modeLabel: "Line Rush",
-  tagline: "Build every order before peak wins.",
+  tagline: "Build every order before peak lunch wins.",
   silent: true,
   defaultDifficulty: "normal",
   storageBestKey: "dml.lineRush.best.v3",
