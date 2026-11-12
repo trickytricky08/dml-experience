@@ -34,6 +34,7 @@ export const KEY_MAP = {
   k: "lettuce",
   l: "honey-vin",
   backspace: "trash",
+  enter: "wrap",
 };
 
 const EASY_ROUNDS = [
@@ -88,9 +89,9 @@ export const GAME_CONFIG = {
   },
 
   difficulties: {
-    easy: { id: "easy", label: "Easy", trashLockoutMs: 2000, strictOrder: false, rounds: EASY_ROUNDS },
-    normal: { id: "normal", label: "Normal", trashLockoutMs: 2500, strictOrder: false, rounds: NORMAL_ROUNDS },
-    hard: { id: "hard", label: "Hard", trashLockoutMs: 3000, strictOrder: true, rounds: HARD_ROUNDS },
+    easy: { id: "easy", label: "Easy", trashLockoutMs: 2000, strictOrder: false, showNextHint: true, rounds: EASY_ROUNDS },
+    normal: { id: "normal", label: "Normal", trashLockoutMs: 2500, strictOrder: false, showNextHint: false, rounds: NORMAL_ROUNDS },
+    hard: { id: "hard", label: "Hard", trashLockoutMs: 3000, strictOrder: true, showNextHint: false, rounds: HARD_ROUNDS },
   },
 };
 
@@ -105,5 +106,6 @@ export function keyCap(panId) {
   const key = keyForPan(panId);
   if (!key) return "";
   if (key === "backspace") return "Bksp";
+  if (key === "enter") return "Enter";
   return key.length === 1 ? key.toUpperCase() : key;
 }

@@ -65,9 +65,12 @@ test("every generated ticket is a legal build", () => {
     assert.equal(open.role, "open");
     assert.equal(close.role, "close");
     assert.equal(open.pan, ticket.packaging.id);
-    assert.equal(close.pan, ticket.packaging.id);
+    assert.equal(close.id, "wrap");
+    assert.equal(close.pan, "wrap");
+    assert.equal(close.label, "Wrap");
+    assert.equal(close.key, "enter");
     assert.equal(open.pan, ENTREES[ticket.entreeType].packaging);
-    assert.equal(close.label, `Close ${ticket.packaging.label}`);
+    assert.notEqual(close.pan, ticket.packaging.id);
     assert.equal(ticket.scoops.filter((step) => step.role === "open" || step.role === "close").length, 2);
 
     for (let i = 1; i < ids.length; i++) {

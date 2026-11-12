@@ -1,5 +1,5 @@
 /**
- * Ticket rules. Packaging bookends every entrée.
+ * Ticket rules. Packaging opens the entrée. Wrap seals it.
  * Easy / Normal: any remaining ticket ingredient, once.
  * Hard: ticket order. A mistake locks the line until Trash.
  */
@@ -36,6 +36,15 @@ export function applyInput(play, panId) {
   const packId = play.ticket.packaging.id;
   const ingredients = playerIngredients(play.ticket);
 
+  if (panId === "wrap") {
+    if (!play.opened) return mistake(play, "wrap-before-packaging", panId);
+    if (play.scooped.length < ingredients.length) return mistake(play, "early-wrap", panId);
+    return {
+      play: { ...play, phase: "closed", correct: play.correct + 1 },
+      event: { type: "correct", kind: "wrap", id: "wrap" },
+    };
+  }
+
   if (play.phase === "await-open") {
     if (PACK_IDS.has(panId)) {
       if (panId !== packId) return mistake(play, "wrong-packaging", panId);
@@ -49,11 +58,7 @@ export function applyInput(play, panId) {
 
   if (PACK_IDS.has(panId)) {
     if (panId !== packId) return mistake(play, "wrong-packaging", panId);
-    if (play.scooped.length < ingredients.length) return mistake(play, "early-close", panId);
-    return {
-      play: { ...play, phase: "closed", correct: play.correct + 1 },
-      event: { type: "correct", kind: "close", id: packId },
-    };
+    return mistake(play, "duplicate", panId);
   }
 
   const step = ingredients.find((item) => item.pan === panId);

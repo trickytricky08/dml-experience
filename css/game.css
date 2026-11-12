@@ -312,7 +312,7 @@ button:focus-visible {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 88px 82px minmax(0, 1fr) 76px;
+  grid-template-columns: 88px 82px minmax(0, 1fr) 96px;
   grid-template-areas: "pack shells wells trash";
   gap: 8px;
   padding: 26px 8px 8px;
@@ -399,8 +399,30 @@ button:focus-visible {
   font-size: 8px; font-weight: 800; letter-spacing: 0.04em;
   padding: 1px 4px; border-radius: 3px;
 }
-.trash-bin {
+.end-col {
   grid-area: trash;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.wrap-btn, .phone-wrap {
+  position: relative;
+  border-radius: 8px;
+  background: var(--burgundy);
+  color: var(--foam);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 3px 0 var(--burgundy-deep);
+}
+.wrap-btn { flex: 1.15; min-height: 0; }
+.wrap-btn .lbl { font-size: 18px; }
+.wrap-btn .key { left: auto; right: 5px; top: 5px; }
+.trash-bin {
+  flex: 0.85;
+  min-height: 0;
   background: #2e3338; color: var(--foam); border-radius: 8px;
   box-shadow: inset 0 0 0 2px #8d949a;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -460,7 +482,9 @@ button:focus-visible {
 /* ===== MISTAKE / LOCKOUT ===== */
 html[data-mode="mistake"] .pan:not(.is-wrong),
 html[data-mode="mistake"] .shell-btn:not(.is-wrong),
-html[data-mode="mistake"] .pack-btn:not(.is-wrong) {
+html[data-mode="mistake"] .pack-btn:not(.is-wrong),
+html[data-mode="mistake"] .wrap-btn:not(.is-wrong),
+html[data-mode="mistake"] .phone-wrap:not(.is-wrong) {
   opacity: 0.38;
   pointer-events: none;
 }
@@ -492,6 +516,8 @@ html[data-mode="mistake"] .phone-trash .cost { color: var(--brown); opacity: 0.8
 html[data-mode="lockout"] .pan,
 html[data-mode="lockout"] .shell-btn,
 html[data-mode="lockout"] .pack-btn,
+html[data-mode="lockout"] .wrap-btn,
+html[data-mode="lockout"] .phone-wrap,
 html[data-mode="lockout"] .trash-bin,
 html[data-mode="lockout"] .phone-trash {
   opacity: 0.45;
@@ -546,6 +572,29 @@ html[data-mode="lockout"] .phone-trash {
 .share-status { margin: 12px 0 0; color: var(--burgundy); user-select: text; }
 .seed-line { margin: 8px 0 0; color: var(--muted); font-size: 12px; font-weight: 800; }
 .new-best { color: var(--burgundy); }
+.home-btn {
+  border: 1px solid rgba(243, 230, 208, 0.4);
+  color: var(--foam);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  align-self: center;
+}
+.confirm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(44, 24, 16, 0.46);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.confirm-panel { width: min(420px, 100%); }
+.confirm-panel h1 { font-size: 32px; }
 
 /* ===== PHONE ===== */
 @media (max-width: 860px) {
@@ -604,7 +653,7 @@ html[data-mode="lockout"] .phone-trash {
     box-shadow: none;
     gap: 6px;
   }
-  .pack-col, .shells, .trash-bin { display: none; }
+  .pack-col, .shells, .end-col { display: none; }
   .phone-base-bar, .phone-shell-bar { display: flex; gap: 6px; padding: 0 8px; flex: 0 0 auto; }
   .phone-base-bar { height: 48px; }
   .phone-shell-bar { height: 42px; }
@@ -626,7 +675,13 @@ html[data-mode="lockout"] .phone-trash {
     background: linear-gradient(90deg, transparent, rgba(58, 64, 70, 0.96) 70%);
     pointer-events: none; z-index: 2;
   }
-  .phone-actions { display: flex; flex: 0 0 54px; }
+  .phone-actions { display: flex; flex: 0 0 56px; gap: 0; }
+  .phone-wrap {
+    flex: 0 0 38%;
+    border-radius: 0;
+    box-shadow: none;
+    font-size: 16px;
+  }
   .phone-trash {
     flex: 1;
     display: flex; align-items: center; justify-content: center; gap: 8px;

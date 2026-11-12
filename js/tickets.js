@@ -276,10 +276,10 @@ function scoopPack(pack, role) {
     return { id: pack.id, label: pack.label, pan: pack.id, key: keyForPan(pack.id), role: "open" };
   }
   return {
-    id: `close-${pack.id}`,
-    label: `Close ${pack.label}`,
-    pan: pack.id,
-    key: keyForPan(pack.id),
+    id: "wrap",
+    label: "Wrap",
+    pan: "wrap",
+    key: "enter",
     role: "close",
   };
 }

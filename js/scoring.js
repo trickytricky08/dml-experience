@@ -15,8 +15,8 @@ export function scoreCompletedEntree(scoopCount, elapsedMs, scoring) {
   };
 }
 
-export function scoreRoundBonuses({ mistakes, quotaHit, leftoverMs, scoring }) {
-  const perfect = mistakes === 0 ? scoring.accuracyPerfectBonus : 0;
+export function scoreRoundBonuses({ mistakes, correct = 0, quotaHit, leftoverMs, scoring }) {
+  const perfect = mistakes === 0 && correct > 0 ? scoring.accuracyPerfectBonus : 0;
   const leftover = quotaHit ? fullSecondsUnder(leftoverMs) * scoring.leftoverSecBonus : 0;
   return { perfect, leftover, total: perfect + leftover };
 }

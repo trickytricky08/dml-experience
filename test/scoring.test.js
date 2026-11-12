@@ -4,6 +4,7 @@ import { GAME_CONFIG, KEY_MAP } from "../js/config.js";
 import { buildHint, dealNote, nextRoundNote, shareText } from "../js/copy.js";
 import { countdownSeconds, formatClock, fullSeconds } from "../js/format.js";
 import { hashString, resolveSeed } from "../js/rng.js";
+import { clockPaused, homeChoice, screenAfterRound } from "../js/flow.js";
 import { accuracyRatio, scoreCompletedEntree, scoreRoundBonuses } from "../js/scoring.js";
 
 const scoring = GAME_CONFIG.scoring;
@@ -47,6 +48,10 @@ test("difficulty table, keys, and scoring constants match the preset", () => {
   assert.equal(KEY_MAP.t, "brisket");
   assert.equal(KEY_MAP.l, "honey-vin");
   assert.equal(KEY_MAP.backspace, "trash");
+  assert.equal(KEY_MAP.enter, "wrap");
+  assert.equal(GAME_CONFIG.difficulties.easy.showNextHint, true);
+  assert.equal(GAME_CONFIG.difficulties.normal.showNextHint, false);
+  assert.equal(GAME_CONFIG.difficulties.hard.showNextHint, false);
   assert.equal(scoring.perEntree, 100);
   assert.equal(scoring.speedBonusPerSecUnderPar, 5);
   assert.equal(scoring.parBaseMs, 2000);
@@ -65,15 +70,27 @@ test("entrée score pays 100 plus full seconds under par", () => {
 });
 
 test("round bonuses: perfect accuracy and leftover seconds only when the quota is met", () => {
-  const clean = scoreRoundBonuses({ mistakes: 0, quotaHit: true, leftoverMs: 3500, scoring });
+  const clean = scoreRoundBonuses({ mistakes: 0, correct: 4, quotaHit: true, leftoverMs: 3500, scoring });
   assert.deepEqual(clean, { perfect: 50, leftover: 30, total: 80 });
-  const missed = scoreRoundBonuses({ mistakes: 2, quotaHit: true, leftoverMs: 3500, scoring });
+  const missed = scoreRoundBonuses({ mistakes: 2, correct: 4, quotaHit: true, leftoverMs: 3500, scoring });
   assert.equal(missed.perfect, 0);
   assert.equal(missed.leftover, 30);
-  const slow = scoreRoundBonuses({ mistakes: 0, quotaHit: false, leftoverMs: 9000, scoring });
+  const slow = scoreRoundBonuses({ mistakes: 0, correct: 3, quotaHit: false, leftoverMs: 9000, scoring });
   assert.equal(slow.leftover, 0);
   assert.equal(slow.perfect, 50);
-  assert.equal(scoreRoundBonuses({ mistakes: 0, quotaHit: true, leftoverMs: 999, scoring }).leftover, 0);
+  const untouched = scoreRoundBonuses({ mistakes: 0, correct: 0, quotaHit: false, leftoverMs: 0, scoring });
+  assert.equal(untouched.perfect, 0);
+  assert.equal(untouched.total, 0);
+  assert.equal(scoreRoundBonuses({ mistakes: 0, correct: 1, quotaHit: true, leftoverMs: 999, scoring }).leftover, 0);
+});
+
+test("a failed round ends the run, and Home quits without saving a best", () => {
+  assert.equal(screenAfterRound("timeout"), "gameover");
+  assert.equal(screenAfterRound("quota"), "roundEnd");
+  assert.deepEqual(homeChoice("quit"), { screen: "title", saveBest: false });
+  assert.deepEqual(homeChoice("keep"), { screen: "playing", saveBest: false });
+  assert.equal(clockPaused(true), true);
+  assert.equal(clockPaused(false), false);
 });
 
 test("accuracy and the share sentence", () => {
@@ -103,8 +120,10 @@ test("countdown, hints, and the round-3 heads-up", () => {
   assert.match(dealNote(GAME_CONFIG.difficulties.normal, rounds[1]), /Normal/);
   assert.match(buildHint(false, 2500), /any order/);
   assert.match(buildHint(false, 2500), /2\.5s/);
+  assert.match(buildHint(false, 2500), /wrapping early/);
   assert.match(buildHint(true, 3000), /ticket order/);
   assert.match(buildHint(true, 3000), /out of order/);
+  assert.match(buildHint(true, 3000), /wrapping early/);
 });
 
 test("seeds: fixed, daily, and distinct days", () => {

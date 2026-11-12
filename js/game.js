@@ -6,6 +6,7 @@ import { applyInput, createPlay } from "./rules.js";
 import { accuracyRatio, scoreCompletedEntree, scoreRoundBonuses } from "./scoring.js";
 import { formatClock, formatInt, formatLockout, formatPct } from "./format.js";
 import { buildHint, dealNote, nextRoundNote, shareText } from "./copy.js";
+import { homeChoice, screenAfterRound } from "./flow.js";
 
 const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
 const requestedDifficulty = params.get("difficulty");
@@ -20,6 +21,8 @@ const ui = {
   run: null,
   round: null,
   shareStatus: "",
+  confirm: false,
+  pauseStartedAt: 0,
   lastFrame: 0,
 };
 
@@ -35,7 +38,7 @@ function frame(now) {
   if (!ui.lastFrame) ui.lastFrame = now;
   const dt = Math.min(250, now - ui.lastFrame);
   ui.lastFrame = now;
-  if (ui.screen === "playing" && ui.round && !ui.round.ended) {
+  if (ui.screen === "playing" && ui.round && !ui.round.ended && !ui.confirm) {
     ui.round.remainingMs -= dt;
     if (ui.round.remainingMs <= 0) {
       ui.round.remainingMs = 0;
@@ -52,15 +55,24 @@ function frame(now) {
 }
 
 function onClick(event) {
+  const control = event.target.closest("[data-action]");
   const pan = event.target.closest("[data-pan]");
+  if (ui.confirm) {
+    if (!control) return;
+    const action = control.dataset.action;
+    if (action === "quit") quitRun();
+    else if (action === "keep") keepPlaying();
+    return;
+  }
   if (pan) {
     onAction(pan.dataset.pan);
     return;
   }
-  const control = event.target.closest("[data-action]");
   if (!control) return;
   const action = control.dataset.action;
-  if (action === "difficulty") {
+  if (action === "home") {
+    openConfirm();
+  } else if (action === "difficulty") {
     ui.difficultyId = control.dataset.difficulty;
     render();
   } else if (action === "play" || action === "again") {
@@ -80,6 +92,17 @@ function onKey(event) {
   const key = event.key.toLowerCase();
   if (key.length === 1 || key === "backspace" || key.startsWith("arrow")) {
     document.documentElement.classList.add("has-keyboard");
+  }
+  if (ui.screen === "playing" && ui.confirm) {
+    event.preventDefault();
+    if (key === "escape") keepPlaying();
+    return;
+  }
+  if (ui.screen === "playing" && key === "escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    openConfirm();
+    return;
   }
   if (ui.screen === "playing") {
     if (event.key === " ") event.preventDefault();
@@ -120,6 +143,8 @@ function startRun() {
     mistakes: 0,
   };
   ui.shareStatus = "";
+  ui.confirm = false;
+  ui.pauseStartedAt = 0;
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   beginRound();
 }
@@ -148,7 +173,7 @@ function beginRound() {
 }
 
 function onAction(panId) {
-  if (ui.screen !== "playing" || !ui.round || ui.round.ended) return;
+  if (ui.confirm || ui.screen !== "playing" || !ui.round || ui.round.ended) return;
   if (ui.round.mode === "lockout") return;
   const round = ui.round;
   const result = applyInput(round.play, panId);
@@ -158,7 +183,7 @@ function onAction(panId) {
   if (event.type === "correct") {
     round.correct += 1;
     ui.run.correct += 1;
-    if (event.kind === "close") {
+    if (event.kind === "wrap") {
       completeTicket();
       return;
     }
@@ -221,6 +246,7 @@ function finishRound(reason) {
   round.remainingMs = Math.max(0, round.remainingMs);
   const bonuses = scoreRoundBonuses({
     mistakes: round.mistakes,
+    correct: round.correct,
     quotaHit: reason === "quota",
     leftoverMs: round.remainingMs,
     scoring: GAME_CONFIG.scoring,
@@ -228,6 +254,17 @@ function finishRound(reason) {
   round.bonuses = bonuses;
   round.score += bonuses.total;
   ui.run.totalScore += bonuses.total;
+  if (screenAfterRound(reason) === "gameover") {
+    ui.run.failedRound = {
+      label: round.def.label,
+      number: ui.run.roundIndex + 1,
+      completed: round.completed,
+      target: round.tickets.length,
+    };
+    endGame();
+    return;
+  }
+  ui.run.failedRound = null;
   ui.screen = "roundEnd";
   render();
 }
@@ -254,7 +291,7 @@ function endGame() {
     accuracy: ratio,
   };
   run.accuracy = ratio;
-  run.isNewBest = !prev || record.score > prev.score;
+  run.isNewBest = record.score > (prev?.score ?? 0);
   if (run.isNewBest) saveBest(record);
   run.best = run.isNewBest ? record : prev;
   ui.best = loadBest();
@@ -262,8 +299,34 @@ function endGame() {
   render();
 }
 
+function openConfirm() {
+  if (ui.confirm || ui.screen !== "playing") return;
+  ui.confirm = true;
+  ui.pauseStartedAt = performance.now();
+  render();
+}
+
+function keepPlaying() {
+  if (!ui.confirm) return;
+  const paused = performance.now() - (ui.pauseStartedAt || performance.now());
+  if (ui.round) ui.round.ticketStartedAt += paused;
+  ui.confirm = false;
+  ui.pauseStartedAt = 0;
+  ui.lastFrame = performance.now();
+  render();
+}
+
+function quitRun() {
+  const choice = homeChoice("quit");
+  ui.confirm = false;
+  ui.pauseStartedAt = 0;
+  if (!choice.saveBest) showTitle();
+}
+
 function showTitle() {
   ui.screen = "title";
+  ui.confirm = false;
+  ui.pauseStartedAt = 0;
   ui.best = loadBest();
   ui.shareStatus = "";
   render();
@@ -342,6 +405,7 @@ function renderPlay() {
     <header class="hud">
       <div class="brand">${esc(GAME_CONFIG.title)} <small>${esc(GAME_CONFIG.modeLabel)}</small></div>
       <div class="hud-stats">
+        <button type="button" class="home-btn" data-action="home">Home</button>
         <div class="stat"><span class="k">Accuracy</span><span class="v" id="accuracy-val">${accuracy}</span></div>
         <div class="stat"><span class="k">Round</span><span class="v">${run.roundIndex + 1} / ${run.difficulty.rounds.length}</span></div>
       </div>
@@ -356,13 +420,14 @@ function renderPlay() {
       <p class="deal-note">${esc(dealNote(run.difficulty, round.def))}</p>
       <div class="build-card">
         <h3>${esc(ticket.buildLabel)}</h3>
-        <div class="surface ${esc(ticket.surface)}">${round.mode === "lockout" ? "" : pills(play)}</div>
+        <div class="surface ${esc(ticket.surface)}">${round.mode === "lockout" ? "" : pills(play, run.difficulty.showNextHint)}</div>
         <p class="build-hint">${esc(buildHint(run.difficulty.strictOrder, run.difficulty.trashLockoutMs))}</p>
         <p id="mistake-callout" class="banner bad" role="alert"${round.mode === "mistake" ? "" : " hidden"}>Mistake, hit Trash</p>
         <p id="lockout-note" class="banner wait"${round.mode === "lockout" ? "" : " hidden"}>Starting this ticket over</p>
       </div>
     </div>
     ${renderLine(wrong, play, cost)}
+    ${ui.confirm ? confirmDialog() : ""}
   </section>`;
 }
 
@@ -394,19 +459,36 @@ function renderRound() {
   </section>`;
 }
 
+function confirmDialog() {
+  return `<div class="confirm-scrim" id="quit-confirm" role="dialog" aria-modal="true" aria-labelledby="quit-title">
+    <div class="panel confirm-panel">
+      <h1 id="quit-title">Quit this run?</h1>
+      <div class="panel-actions">
+        <button class="btn" type="button" data-action="quit">Quit</button>
+        <button class="btn ghost" type="button" data-action="keep">Keep playing</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderOver() {
   const run = ui.run;
   const accuracy = formatPct(run.accuracy);
+  const failed = run.failedRound;
   const bestLine = run.isNewBest
     ? `<p class="run-line new-best">New best · <strong>${formatInt(run.totalScore)}</strong></p>`
-    : `<p class="run-line">Best <strong>${formatInt(run.best?.score ?? run.totalScore)}</strong></p>`;
+    : `<p class="run-line">${bestMarkup(run.best)}</p>`;
   const status = ui.shareStatus
     ? `<p class="share-status">${esc(ui.shareStatus)}</p>`
     : "";
+  const failedLine = failed
+    ? `<p class="sub" id="failed-round">${esc(failed.label)} failed. You packed ${failed.completed} of ${failed.target} entrées.</p>`
+    : "";
   return `<section class="screen overlay" data-screen="gameover">
     <div class="panel">
-      <span class="badge">${esc(GAME_CONFIG.modeLabel)}</span>
-      <h1>Lunch rush over.</h1>
+      <span class="badge">${esc(failed ? failed.label : GAME_CONFIG.modeLabel)}</span>
+      <h1>${failed ? "Time's up." : "Lunch rush over."}</h1>
+      ${failedLine}
       <div class="stats-grid">
         <div class="stat-tile hero"><div class="k">Entrées completed</div><div class="v" id="final-count">${run.totalCompleted} <small>of ${run.totalTarget}</small></div></div>
         <div class="stat-tile"><div class="k">Accuracy</div><div class="v" id="final-accuracy">${accuracy}</div></div>
@@ -434,7 +516,7 @@ function ticketCard(ticket, play, current) {
     return `<span class="${classes.join(" ")}" data-id="${esc(step.id)}" data-pan="${esc(step.pan)}" data-key="${esc(step.key || "")}" data-role="${esc(step.role || "")}">${esc(step.label)}</span>`;
   }).join("");
   const who = current ? "Now serving" : "Up next";
-  const peek = [ticket.packaging.label, ...playerIngredients(ticket).slice(0, 5).map((step) => step.label), `Close ${ticket.packaging.label}`].join(" · ");
+  const peek = [ticket.packaging.label, ...playerIngredients(ticket).slice(0, 5).map((step) => step.label), "Wrap"].join(" · ");
   return `<article class="ticket ${current ? "current" : "next"}">
     <h2 class="entree">${esc(ticket.entreeLabel)}</h2>
     <div class="who"><span class="guest">${esc(ticket.guest)}</span><span class="num">${who}</span></div>
@@ -468,8 +550,9 @@ function chipState(step, play) {
   return "";
 }
 
-function pills(play) {
+function pills(play, showNextHint) {
   if (!play.opened) {
+    if (!showNextHint) return "";
     return `<span class="scoop ghost">${esc(play.ticket.packaging.label)}?</span>`;
   }
   const parts = [`<span class="scoop pack">${esc(play.ticket.packaging.label)}</span>`];
@@ -481,10 +564,9 @@ function pills(play) {
     const step = byId.get(id);
     parts.push(`<span class="scoop ${itemGroup(id)}">${esc(step?.label || id)}</span>`);
   }
-  if (play.phase === "building") {
+  if (showNextHint && play.phase === "building") {
     const next = playerIngredients(play.ticket).find((step) => !play.scooped.includes(step.id));
-    const label = next ? `${next.label}?` : `Close ${play.ticket.packaging.label}?`;
-    parts.push(`<span class="scoop ghost">${esc(label)}</span>`);
+    parts.push(`<span class="scoop ghost">${esc(next ? `${next.label}?` : "Wrap?")}</span>`);
   }
   return parts.join("");
 }
@@ -509,7 +591,8 @@ function renderLine(wrongId, play, cost) {
     const lto = item.lto ? `<span class="lto">LTO</span>` : "";
     return `<button type="button" class="${classes.join(" ")}" data-pan="${item.id}" aria-label="${esc(item.panLabel)} (${keyCap(item.id)})"><span class="key">${keyCap(item.id)}</span>${lto}<span class="food ${item.food}"></span><span class="lbl">${esc(item.panLabel)}</span></button>`;
   }).join("");
-  const trashClass = "trash-bin";
+  const wrapClass = wrongId === "wrap" ? "wrap-btn is-wrong" : "wrap-btn";
+  const phoneWrapClass = wrongId === "wrap" ? "phone-wrap is-wrong" : "phone-wrap";
   return `<div class="line-wrap">
     <div class="line">
       <div class="glass" aria-hidden="true"></div>
@@ -524,15 +607,22 @@ function renderLine(wrongId, play, cost) {
         </div>
         <div class="line-fade" aria-hidden="true"></div>
       </div>
-      <button type="button" class="${trashClass}" data-pan="trash" aria-label="Trash, ${cost}">
-        <span class="key">${keyCap("trash")}</span>
-        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 12h18M13 8h6v3H13z" fill="none" stroke="#F3E6D0" stroke-width="2" stroke-linecap="round"/><rect x="9" y="12" width="14" height="14" rx="2" fill="none" stroke="#F3E6D0" stroke-width="2"/><path d="M13 16v7M19 16v7" stroke="#F3E6D0" stroke-width="2" stroke-linecap="round"/></svg>
-        <span class="lbl">Trash</span>
-        <span class="sub">${cost}</span>
-      </button>
+      <div class="end-col">
+        <button type="button" class="${wrapClass}" data-pan="wrap" aria-label="Wrap (Enter)">
+          <span class="key">${keyCap("wrap")}</span>
+          <span class="lbl">Wrap</span>
+        </button>
+        <button type="button" class="trash-bin" data-pan="trash" aria-label="Trash, ${cost}">
+          <span class="key">${keyCap("trash")}</span>
+          <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 12h18M13 8h6v3H13z" fill="none" stroke="#F3E6D0" stroke-width="2" stroke-linecap="round"/><rect x="9" y="12" width="14" height="14" rx="2" fill="none" stroke="#F3E6D0" stroke-width="2"/><path d="M13 16v7M19 16v7" stroke="#F3E6D0" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="lbl">Trash</span>
+          <span class="sub">${cost}</span>
+        </button>
+      </div>
     </div>
     <div class="phone-actions">
-      <button type="button" class="phone-trash" data-pan="trash">Trash <span class="cost">costs ${cost} · restarts this ticket</span></button>
+      <button type="button" class="${phoneWrapClass}" data-pan="wrap">Wrap</button>
+      <button type="button" class="phone-trash" data-pan="trash" aria-label="Trash, ${cost}, restarts this ticket">Trash <span class="cost">${cost}</span></button>
     </div>
   </div>`;
 }

@@ -13,7 +13,7 @@ function ticket(packId, ingredientIds) {
     scoops: [
       { id: packId, label, pan: packId, role: "open" },
       ...ingredientIds.map((id) => ({ id, label: id, pan: id })),
-      { id: `close-${packId}`, label: `Close ${label}`, pan: packId, role: "close" },
+      { id: "wrap", label: "Wrap", pan: "wrap", role: "close" },
     ],
     autoScoops: [],
   };
@@ -25,11 +25,12 @@ function play(strictOrder, source = TACO()) {
   return createPlay(source, { strictOrder });
 }
 
-test("any order accepts ingredients out of ticket order, then the same packaging closes", () => {
+test("any order accepts ingredients out of ticket order, then Wrap seals", () => {
   let state = play(false);
-  for (const pan of ["container", "tomato", "chicken", "crispy-corn", "container"]) {
+  for (const pan of ["container", "tomato", "chicken", "crispy-corn", "wrap"]) {
     const result = applyInput(state, pan);
     assert.equal(result.event.type, "correct", pan);
+    assert.equal(result.event.kind === "wrap" || pan !== "wrap", true);
     state = result.play;
   }
   assert.equal(state.phase, "closed");
@@ -60,7 +61,7 @@ test("strict order rejects a later ingredient and accepts the listed order", () 
   assert.deepEqual(trashed.play.scooped, []);
 
   state = trashed.play;
-  for (const pan of ["container", "crispy-corn", "chicken", "tomato", "container"]) {
+  for (const pan of ["container", "crispy-corn", "chicken", "tomato", "wrap"]) {
     const result = applyInput(state, pan);
     assert.equal(result.event.type, "correct", pan);
     state = result.play;
@@ -87,7 +88,7 @@ test("an ingredient before packaging is its own mistake, even if it is off the t
   assert.notEqual(off.event.kind, "off-ticket");
 });
 
-test("off-ticket, duplicate, and early close each lock until trash", () => {
+test("off-ticket, duplicate scoop, and a second packaging press each lock until trash", () => {
   let state = applyInput(play(false), "container").play;
 
   const off = applyInput(state, "lettuce");
@@ -104,14 +105,41 @@ test("off-ticket, duplicate, and early close each lock until trash", () => {
   state = applyInput(dup.play, "trash").play;
 
   state = applyInput(state, "container").play;
-  const early = applyInput(state, "container");
-  assert.equal(early.event.kind, "early-close");
-  assert.equal(early.play.phase, "locked");
-  assert.equal(early.play.opened, true);
+  const again = applyInput(state, "container");
+  assert.equal(again.event.type, "mistake");
+  assert.equal(again.event.kind, "duplicate");
+  assert.notEqual(again.play.phase, "closed");
+  assert.equal(again.play.opened, true);
+  state = applyInput(again.play, "trash").play;
 
+  state = applyInput(state, "container").play;
+  state = applyInput(state, "crispy-corn").play;
   state = applyInput(state, "chicken").play;
-  const stillEarly = applyInput(state, "container");
-  assert.equal(stillEarly.event.kind, "early-close");
+  state = applyInput(state, "tomato").play;
+  const still = applyInput(state, "container");
+  assert.equal(still.event.kind, "duplicate");
+  assert.notEqual(still.play.phase, "closed");
+});
+
+test("wrap before packaging and early wrap lock the line", () => {
+  const before = applyInput(play(false), "wrap");
+  assert.equal(before.event.kind, "wrap-before-packaging");
+  assert.equal(before.play.phase, "locked");
+  assert.equal(applyInput(before.play, "container").event.type, "ignored");
+
+  let state = applyInput(before.play, "trash").play;
+  state = applyInput(state, "container").play;
+  const early = applyInput(state, "wrap");
+  assert.equal(early.event.kind, "early-wrap");
+  assert.equal(early.play.opened, true);
+  assert.notEqual(early.play.phase, "closed");
+  state = applyInput(early.play, "trash").play;
+  for (const pan of ["container", "crispy-corn", "chicken", "tomato", "wrap"]) {
+    const result = applyInput(state, pan);
+    assert.equal(result.event.type, "correct", pan);
+    state = result.play;
+  }
+  assert.equal(state.phase, "closed");
 });
 
 test("the wrong packaging at the end is not a close, and trash without a mistake is voluntary", () => {

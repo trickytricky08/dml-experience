@@ -57,7 +57,8 @@ async function readSteps(page) {
 }
 
 async function pressKey(page, key) {
-  await page.keyboard.press(key === "backspace" ? "Backspace" : key);
+  const name = key === "backspace" ? "Backspace" : key === "enter" ? "Enter" : key;
+  await page.keyboard.press(name);
 }
 
 async function tapPan(page, pan) {
@@ -220,14 +221,21 @@ try {
   await fit(page, "desktop title");
   await shot(page, "desktop-title");
 
+  await page.goto(`http://127.0.0.1:${port}/?difficulty=easy`);
+  await page.locator("[data-action='play']").click();
+  await page.locator(".scoop.ghost").first().waitFor();
+  assert((await page.locator(".scoop.ghost").count()) > 0, "easy should show the next hint");
   await page.goto(`http://127.0.0.1:${port}/?seed=1&difficulty=normal`);
   await page.locator("[data-action='play']").click();
   await page.locator("section[data-screen='play']").waitFor();
+  assert((await page.locator(".scoop.ghost").count()) === 0, "normal should start with an empty build area");
   await fit(page, "desktop play");
   await inView(page, "#time-val");
   await inView(page, "#quota-val");
   await inView(page, "[data-pan='foil']:visible");
   await inView(page, "[data-pan='trash']:visible");
+  await inView(page, "[data-pan='wrap']:visible");
+  await inView(page, "[data-action='home']");
   await inView(page, "[data-pan='white-rice']:visible");
   await shot(page, "desktop-play");
 
@@ -266,6 +274,8 @@ try {
   const offKey = ["l", "k", "t", "g", "h"].find((key) => !used.has(key));
   assert(offKey, "could not find an off-ticket key");
 
+  await mistake(desk, { key: "enter", kind: "wrap before packaging" });
+
   const clock = await desk.locator("#time-val").innerText();
   await mistake(desk, { key: steps[1].key, kind: "ingredient before packaging" });
   await desk.waitForFunction((prev) => document.querySelector("#time-val").textContent !== prev, clock, { timeout: 2500 });
@@ -278,7 +288,10 @@ try {
   await mistake(desk, { key: steps[1].key, kind: "duplicate" });
 
   await pressKey(desk, openKey);
-  await mistake(desk, { key: openKey, kind: "early close" });
+  await mistake(desk, { key: openKey, kind: "packaging pressed again" });
+
+  await pressKey(desk, openKey);
+  await mistake(desk, { key: "enter", kind: "early wrap" });
 
   await pressKey(desk, openKey);
   await pressKey(desk, steps[1].key);
@@ -294,6 +307,24 @@ try {
   await desk.waitForFunction(() => /1/.test(document.querySelector("#quota-val")?.textContent || ""));
   const quota = (await desk.locator("#quota-val").innerText()).replace(/\s+/g, " ");
   assert(quota.includes("1 of 3"), quota);
+
+  const beforePause = await desk.locator("#time-val").innerText();
+  await desk.keyboard.press("Escape");
+  await desk.locator("#quit-confirm").waitFor();
+  await desk.waitForTimeout(1300);
+  assert((await desk.locator("#time-val").innerText()) === beforePause, "clock ran during Home confirm");
+  await desk.keyboard.press("Enter");
+  assert(await desk.locator("#quit-confirm").isVisible(), "Enter wrapped during confirm");
+  await desk.locator("[data-action='keep']").click();
+  await desk.locator("#quit-confirm").waitFor({ state: "hidden" });
+  await desk.waitForFunction((prev) => document.querySelector("#time-val").textContent !== prev, beforePause, { timeout: 2500 });
+  await desk.locator("[data-action='home']").click();
+  await desk.locator("#quit-confirm").waitFor();
+  await shot(desk, "desktop-quit");
+  await desk.locator("[data-action='quit']").click();
+  await desk.locator("section[data-screen='title']").waitFor();
+  const stored = await desk.evaluate(() => localStorage.getItem("dml.lineRush.best.v3"));
+  assert(stored === null, `quit saved a best: ${stored}`);
   await mistakes.close();
 
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -307,12 +338,15 @@ try {
   await shot(hand, "phone-title");
   await hand.locator("[data-action='play']").click();
   await hand.locator("section[data-screen='play']").waitFor();
+  assert((await hand.locator(".scoop.ghost").count()) === 0, "phone normal shows a next hint");
   await fit(hand, "phone play");
   await inView(hand, "[data-pan='foil']:visible");
   await inView(hand, "[data-pan='container']:visible");
   await inView(hand, "[data-pan='soft-flour']:visible");
   await inView(hand, "[data-pan='crispy-corn']:visible");
+  await inView(hand, "[data-pan='wrap']:visible");
   await inView(hand, ".phone-trash");
+  await inView(hand, "[data-action='home']");
   await inView(hand, "#time-val");
   await inView(hand, ".ticket.current");
   await shot(hand, "phone-play");
@@ -327,11 +361,42 @@ try {
   assert((await hand.locator("#final-accuracy").innerText()) === "100%", "phone accuracy");
 
   await hand.goto(`http://127.0.0.1:${port}/?seed=11&difficulty=normal`);
+  const phoneBestBefore = await hand.evaluate(() => localStorage.getItem("dml.lineRush.best.v3"));
+  await hand.locator("[data-action='play']").click();
+  await hand.locator("[data-action='home']").click();
+  await hand.locator("#quit-confirm").waitFor();
+  await fit(hand, "phone confirm");
+  await hand.locator("[data-action='keep']").click();
+  await hand.locator("#quit-confirm").waitFor({ state: "hidden" });
+  assert(await hand.locator("section[data-screen='play']").isVisible(), "keep playing left the line");
+  await hand.locator("[data-action='home']").click();
+  await hand.locator("[data-action='quit']").click();
+  await hand.locator("section[data-screen='title']").waitFor();
+  const phoneStored = await hand.evaluate(() => localStorage.getItem("dml.lineRush.best.v3"));
+  assert(phoneStored === phoneBestBefore, `phone quit changed the best: ${phoneStored}`);
+
   await hand.locator("[data-action='play']").click();
   const phoneSteps = await readSteps(hand);
-  await mistake(hand, { tap: true, pan: phoneSteps[1].pan, kind: "phone ingredient before packaging", shotName: "phone-mistake" });
+  await mistake(hand, { tap: true, pan: "wrap", kind: "phone wrap before packaging" });
+  await tapPan(hand, phoneSteps[0].pan);
+  await mistake(hand, { tap: true, pan: "wrap", kind: "phone early wrap", shotName: "phone-mistake" });
+  await mistake(hand, { tap: true, pan: phoneSteps[1].pan, kind: "phone ingredient before packaging" });
   await shot(hand, "phone-after-trash");
   await phone.close();
+
+  const failed = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const failPage = await failed.newPage();
+  failPage.on("pageerror", (err) => errors.push(`fail ${err.message}`));
+  await failPage.goto(`http://127.0.0.1:${port}/?seed=4&difficulty=normal`);
+  await failPage.locator("[data-action='play']").click();
+  await failPage.locator("section[data-screen='gameover']").waitFor({ timeout: 70000 });
+  const failedText = await failPage.locator("#failed-round").innerText();
+  assert(failedText.includes("Round 1") && failedText.includes("failed") && failedText.includes("0 of 2"), failedText);
+  assert((await failPage.locator("#final-score").innerText()) === "0", "untouched round scored points");
+  assert((await failPage.locator("[data-action='continue']").count()) === 0, "failed round offered continue");
+  await fit(failPage, "failed game over");
+  await shot(failPage, "desktop-failed");
+  await failed.close();
 
   assert(errors.length === 0, `page errors:\n${errors.join("\n")}`);
   console.log("e2e ok");
