@@ -900,19 +900,25 @@ html[data-mode="lockout"] .phone-trash {
   .hud {
     flex: 0 0 auto;
     display: grid;
-    grid-template-columns: 1fr auto auto;
-    grid-template-areas: "brand goal timer" "stats stats stats";
+    grid-template-columns: auto auto 1fr auto auto;
+    grid-template-areas:
+      "brand brand brand round timer"
+      "home accuracy quota quota quota";
     gap: 2px 10px;
     padding: 8px 12px 6px;
     align-items: end;
   }
   .brand { grid-area: brand; font-size: 15px; align-self: center; }
   .brand small { font-size: 8px; padding: 2px 5px; }
-  .goal { grid-area: goal; min-width: 0; margin: 0; align-items: flex-end; }
-  .goal .v { font-size: 28px; }
+  .hud-stats { display: contents; }
+  .home-btn { grid-area: home; align-self: end; }
+  .hud-stats .stat:first-of-type { grid-area: accuracy; align-self: end; }
+  .hud-stats .stat:last-of-type { grid-area: round; align-items: flex-end; align-self: end; text-align: right; }
+  .hud-stats .stat:last-of-type .v { font-size: 28px; }
+  .goal { grid-area: quota; min-width: 0; margin: 0; align-items: flex-start; align-self: end; justify-self: start; }
+  .goal .v { font-size: 16px; }
   .timer { grid-area: timer; min-width: 0; }
   .timer .v { font-size: 30px; }
-  .hud-stats { grid-area: stats; gap: 14px; }
   .stat .v { font-size: 16px; }
 
   .stage { gap: 6px; padding: 8px 10px 4px; flex: 0 1 auto; max-height: 44%; overflow: hidden; }
