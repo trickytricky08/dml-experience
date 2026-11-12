@@ -58,7 +58,7 @@ export const PACKAGING = [
 
 export const ITEM_LIST = [
   { id: "soft-flour", ticketLabel: "Soft flour", panLabel: "Soft Flour", group: "shell", food: "f-flour", row: "shell" },
-  { id: "crispy-corn", ticketLabel: "Taco shells", panLabel: "Taco Shells", group: "shell", food: "f-corn", row: "shell" },
+  { id: "crispy-corn", ticketLabel: "Taco shells", panLabel: "Taco Shells", group: "shell", food: "f-taco-shell", row: "shell" },
   { id: "white-rice", ticketLabel: "White rice", panLabel: "White Rice", group: "rice", food: "f-white", row: "hot" },
   { id: "brown-rice", ticketLabel: "Brown rice", panLabel: "Brown Rice", group: "rice", food: "f-brown", row: "hot" },
   { id: "black-beans", ticketLabel: "Black beans", panLabel: "Black Beans", group: "beans", food: "f-black", row: "hot" },

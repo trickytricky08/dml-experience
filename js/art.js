@@ -166,27 +166,51 @@ function pile(id, mode) {
   return out;
 }
 
-function standingShell(cx) {
-  const d = `M${cx - 64} 48 C${cx - 82} 160 ${cx - 42} 310 ${cx} 348 C${cx + 42} 310 ${cx + 82} 160 ${cx + 64} 48`;
-  const inner = `M${cx - 36} 86 C${cx - 44} 170 ${cx - 16} 270 ${cx} 300 C${cx + 16} 270 ${cx + 44} 170 ${cx + 36} 86`;
-  return `<g data-layer="crispy-corn" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="${d}" stroke="${INK}" stroke-width="54"/>
-    <path d="${d}" stroke="#E8C84A" stroke-width="46"/>
-    <path d="${d}" stroke="#C49220" stroke-width="18"/>
-    <path d="${inner}" stroke="#F4E08A" stroke-width="8" opacity="0.85"/>
-    <circle cx="${cx - 46}" cy="150" r="3.2" fill="#A87818"/>
-    <circle cx="${cx + 44}" cy="176" r="3" fill="#A87818"/>
-    <circle cx="${cx - 36}" cy="230" r="2.6" fill="#C49220"/>
-    <circle cx="${cx + 34}" cy="120" r="2.4" fill="#C49220"/>
-  </g>`;
+const SHELL_BACK = `<g fill="none" stroke="${INK}" stroke-width="4.6" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M28 78 C16 76 8 64 16 54 C6 48 10 32 24 30 C20 16 38 6 56 14 C64 2 88 0 104 12 C118 0 142 2 156 14 C174 4 196 12 202 28 C218 26 232 40 226 54 C236 62 230 78 214 80 C208 98 184 114 158 108 C132 124 96 124 72 108 C48 118 26 104 22 88 C8 90 6 78 28 78 Z" fill="#E8C84A"/>
+  <path d="M36 70 C24 62 22 46 36 40 C48 32 62 36 70 48" stroke="#F4E08A" stroke-width="5" opacity="0.9"/>
+  <path d="M52 74 C46 52 70 34 108 32 C150 30 186 48 184 72 C180 92 150 106 112 104 C74 106 56 92 52 74 Z" fill="#A87818"/>
+  <path d="M66 70 C64 54 86 42 114 44 C144 42 168 54 166 70 C162 84 140 94 114 92 C86 94 68 84 66 70 Z" fill="#6E4414"/>
+  <path d="M78 62 C90 50 140 48 160 62" stroke="#C49220" stroke-width="3.2" opacity="0.75"/>
+  <circle cx="48" cy="58" r="3.2" fill="#C49220" stroke="none"/>
+  <circle cx="70" cy="28" r="2.6" fill="#A87818" stroke="none"/>
+  <circle cx="150" cy="22" r="2.8" fill="#C49220" stroke="none"/>
+  <circle cx="196" cy="48" r="3" fill="#A87818" stroke="none"/>
+  <circle cx="180" cy="92" r="2.4" fill="#C49220" stroke="none"/>
+  <circle cx="40" cy="96" r="2.2" fill="#A87818" stroke="none"/>
+</g>`;
+
+const SHELL_FRONT = `<g fill="none" stroke="${INK}" stroke-width="4.6" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M46 86 C42 74 58 66 74 72 C86 62 104 64 118 74 C130 62 150 64 164 74 C178 64 196 72 198 86 C186 104 156 116 118 114 C78 116 52 104 46 86 Z" fill="#E8C84A"/>
+  <path d="M58 84 C70 74 96 76 112 86 C128 76 156 78 172 88" stroke="#F4E08A" stroke-width="4" opacity="0.85"/>
+  <circle cx="88" cy="96" r="2.4" fill="#C49220" stroke="none"/>
+  <circle cx="148" cy="98" r="2.2" fill="#A87818" stroke="none"/>
+</g>`;
+
+const SHELL_Y = 198;
+
+function shellPiece(cx, part) {
+  const body = part === "front" ? SHELL_FRONT : SHELL_BACK;
+  const layer = part === "front" ? "" : ` data-layer="crispy-corn"`;
+  return `<g${layer} transform="translate(${cx - 118} ${SHELL_Y})">${body}</g>`;
 }
 
-function tacoShells() {
-  return TACO_X.map(standingShell).join("");
+function tacoShellBacks() {
+  return TACO_X.map((x) => shellPiece(x, "back")).join("");
 }
+
+function tacoShellFronts() {
+  return TACO_X.map((x) => shellPiece(x, "front")).join("");
+}
+
+function tacoShellIcon() {
+  return `<g transform="translate(5 16) scale(0.38)">${SHELL_BACK}${SHELL_FRONT}</g>`;
+}
+
+PAN_ART["crispy-corn"] = tacoShellIcon();
 
 function tacoFilling(id) {
-  return TACO_X.map((x) => place(id, x, 150, 1.7)).join("");
+  return TACO_X.map((x) => place(id, x, SHELL_Y + 62, 1.05)).join("");
 }
 
 function sealed(packaging) {
@@ -230,7 +254,7 @@ function sceneMode(model) {
 
 function drawScoop(id, mode) {
   if (id === "soft-flour") return tortilla();
-  if (id === "crispy-corn") return tacoShells();
+  if (id === "crispy-corn") return tacoShellBacks();
   if (id === "supergreens") return greens();
   if (mode === "tacos") return tacoFilling(id);
   return pile(id, mode);
@@ -266,8 +290,13 @@ export function sceneSvg(model, { ghostId = "", drop = false } = {}) {
       const last = drop && layer === scoops[scoops.length - 1];
       body += last ? `<g class="layer-drop">${graphic}</g>` : graphic;
     }
+    if (model.some((layer) => layer.id === "crispy-corn")) body += tacoShellFronts();
     if (ghostId) {
-      const ghost = mode === "quesadilla" && ghostId === "soft-flour" ? tortillaCheese() : drawScoop(ghostId, mode);
+      const ghost = mode === "quesadilla" && ghostId === "soft-flour"
+        ? tortillaCheese()
+        : ghostId === "crispy-corn"
+          ? tacoShellBacks() + tacoShellFronts()
+          : drawScoop(ghostId, mode);
       body += `<g class="layer-ghost" opacity="0.38">${ghost}</g>`;
     }
   }
