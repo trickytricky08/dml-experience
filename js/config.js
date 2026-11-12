@@ -64,6 +64,13 @@ export const GAME_CONFIG = {
   silent: true,
   defaultDifficulty: "normal",
   storageBestKey: "dml.lineRush.best.v3",
+  storageNameKey: "dml.lineRush.name.v1",
+
+  leaderboard: {
+    enabled: true,
+    url: "https://mrfpyfnyyvnahacdvskf.supabase.co",
+    key: "sb_publishable_yYD00bQ-0nzUyZjrZGmwMQ_G4Z5OSg0",
+  },
 
   line: {
     includeLtoBrisket: true,

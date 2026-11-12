@@ -8,6 +8,7 @@ import { formatClock, formatInt, formatPenalty, formatPct } from "./format.js";
 import { buildHint, dealNote, nextRoundNote, shareText } from "./copy.js";
 import { clockDeltaForAction, deductMistakeTime, homeChoice, screenAfterRound } from "./flow.js";
 import { layerModel, panSvg, sceneSvg } from "./art.js";
+import { fetchTop10, formatBoardDate, leaderboardErrorText, samePlayerName, submitScore, validatePlayerName } from "./leaderboard.js";
 
 const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
 const requestedDifficulty = params.get("difficulty");
@@ -22,6 +23,12 @@ const ui = {
   run: null,
   round: null,
   shareStatus: "",
+  boardTab: "hard",
+  boards: {},
+  nameDraft: "",
+  entry: "hidden",
+  entryError: "",
+  submitResult: null,
   confirm: false,
   pauseStartedAt: 0,
   lastFrame: 0,
@@ -29,8 +36,12 @@ const ui = {
 
 function boot() {
   ui.best = loadBest();
+  ui.nameDraft = loadPlayerName();
   document.addEventListener("click", onClick);
+  document.addEventListener("input", onNameInput);
+  document.addEventListener("submit", onScoreSubmit);
   window.addEventListener("keydown", onKey, true);
+  loadBoard("hard");
   render();
   requestAnimationFrame(frame);
 }
@@ -80,11 +91,21 @@ function onClick(event) {
     showTitle();
   } else if (action === "share") {
     shareRun();
+  } else if (action === "board-tab") {
+    ui.boardTab = control.dataset.difficulty;
+    loadBoard(ui.boardTab);
+    render();
+  } else if (action === "skip-score") {
+    ui.entry = "skipped";
+    ui.entryError = "";
+    render();
   }
 }
 
 function onKey(event) {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+  if (typing) return;
   if (event.key === "Backspace") event.preventDefault();
   const key = event.key.toLowerCase();
   if (key.length === 1 || key === "backspace" || key.startsWith("arrow")) {
@@ -305,6 +326,10 @@ function endGame() {
   if (run.isNewBest) saveBest(record);
   run.best = run.isNewBest ? record : prev;
   ui.best = loadBest();
+  ui.entry = run.totalScore > 0 && GAME_CONFIG.leaderboard.enabled ? "offer" : "hidden";
+  ui.entryError = "";
+  ui.submitResult = null;
+  ui.nameDraft = loadPlayerName();
   ui.screen = "gameover";
   render();
 }
@@ -340,6 +365,8 @@ function showTitle() {
   ui.pauseStartedAt = 0;
   ui.best = loadBest();
   ui.shareStatus = "";
+  ui.boardTab = "hard";
+  loadBoard("hard");
   render();
 }
 
@@ -389,16 +416,19 @@ function renderTitle() {
   return `<section class="screen screen-title" data-screen="title">
     <div class="awning" aria-hidden="true"></div>
     <div class="shop-sign">Neighborhood burrito shop</div>
-    <div class="title-core">
-      <div class="mascot">${mascotSvg()}</div>
-      <h1 class="wordmark"><span class="the">The</span>DML Experience</h1>
-      <div class="badge">${esc(GAME_CONFIG.modeLabel)}</div>
-      <p class="tagline">${esc(GAME_CONFIG.tagline)}</p>
-      <div class="diff-pick" role="group" aria-label="Difficulty">${diffs}</div>
-      <div class="title-actions">
-        <button class="btn" type="button" data-action="play">Play</button>
-        <p class="best-line" id="best-line">${bestMarkup(ui.best)}</p>
+    <div class="title-shell">
+      <div class="title-core">
+        <div class="mascot">${mascotSvg()}</div>
+        <h1 class="wordmark"><span class="the">The</span>DML Experience</h1>
+        <div class="badge">${esc(GAME_CONFIG.modeLabel)}</div>
+        <p class="tagline">${esc(GAME_CONFIG.tagline)}</p>
+        <div class="diff-pick" role="group" aria-label="Difficulty">${diffs}</div>
+        <div class="title-actions">
+          <button class="btn" type="button" data-action="play">Play</button>
+          <p class="best-line" id="best-line">${bestMarkup(ui.best)}</p>
+        </div>
       </div>
+      ${boardCard({ tabs: true, difficulty: ui.boardTab, kicker: "Global leaderboard", title: "Top 10" })}
     </div>
   </section>`;
 }
@@ -494,24 +524,44 @@ function renderOver() {
   const failedLine = failed
     ? `<p class="sub" id="failed-round">${esc(failed.label)} failed. You packed ${failed.completed} of ${failed.target} entrées.</p>`
     : "";
+  const posted = ui.entry === "done" && ui.submitResult;
+  const diffLabel = GAME_CONFIG.difficulties[run.difficulty.id].label;
+  const entry = scoreEntry(run, diffLabel);
+  const resultBoard = posted
+    ? boardCard({
+      tabs: false,
+      difficulty: run.difficulty.id,
+      kicker: `${diffLabel} · Global`,
+      title: "Top 10",
+      rankNote: ui.submitResult.rank > 10 ? `Your best rank: #${ui.submitResult.rank}` : "",
+    })
+    : "";
+  const statsClass = posted ? "stats-inline" : "stats-grid";
   return `<section class="screen overlay" data-screen="gameover">
-    <div class="panel">
-      <span class="badge">${esc(failed ? failed.label : GAME_CONFIG.modeLabel)}</span>
-      <h1>${failed ? "Time's up." : "Lunch rush over."}</h1>
-      ${failedLine}
-      <div class="stats-grid">
-        <div class="stat-tile hero"><div class="k">Entrées completed</div><div class="v" id="final-count">${run.totalCompleted} <small>of ${run.totalTarget}</small></div></div>
-        <div class="stat-tile"><div class="k">Accuracy</div><div class="v" id="final-accuracy">${accuracy}</div></div>
-        <div class="stat-tile"><div class="k">Score</div><div class="v" id="final-score">${formatInt(run.totalScore)}</div></div>
+    <div class="panel${posted ? " wide" : ""}">
+      <div class="panel-main">
+        <span class="badge">${esc(failed ? failed.label : GAME_CONFIG.modeLabel)}</span>
+        <h1>${failed ? "Time's up." : "Lunch rush over."}</h1>
+        ${failedLine}
+        ${posted ? placeCallout(ui.submitResult, diffLabel) : ""}
+        <div class="${statsClass}">
+          <div class="stat-tile hero"><div class="k">${posted ? "Entrées" : "Entrées completed"}</div><div class="v" id="final-count">${run.totalCompleted} <small>of ${run.totalTarget}</small></div></div>
+          <div class="stat-tile"><div class="k">Accuracy</div><div class="v" id="final-accuracy">${accuracy}</div></div>
+          <div class="stat-tile"><div class="k">Score</div><div class="v" id="final-score">${formatInt(run.totalScore)}</div></div>
+        </div>
+        ${bestLine}
+        ${entry}
       </div>
-      ${bestLine}
-      <div class="panel-actions">
-        <button class="btn" type="button" data-action="again">Play again</button>
-        <button class="btn ghost" type="button" data-action="share" data-share="${esc(currentShareText())}">Share</button>
+      ${resultBoard}
+      <div class="panel-foot">
+        <div class="panel-actions">
+          <button class="btn" type="button" data-action="again">Play again</button>
+          <button class="btn ghost" type="button" data-action="share" data-share="${esc(currentShareText())}">Share</button>
+        </div>
+        ${status}
+        <p class="seed-line">Seed ${run.seed}</p>
+        <button class="text-link" type="button" data-action="title">Title</button>
       </div>
-      ${status}
-      <p class="seed-line">Seed ${run.seed}</p>
-      <button class="text-link" type="button" data-action="title">Title</button>
     </div>
   </section>`;
 }
@@ -651,6 +701,154 @@ function scrollLine(round) {
   const box = el.getBoundingClientRect();
   const delta = box.left - parent.left - (wells.clientWidth - box.width) / 2;
   wells.scrollLeft += delta;
+}
+
+function onNameInput(event) {
+  if (event.target.id !== "player-name") return;
+  ui.nameDraft = event.target.value;
+  const count = document.getElementById("name-count");
+  if (count) count.textContent = `${ui.nameDraft.length}/12`;
+}
+
+function onScoreSubmit(event) {
+  if (!(event.target instanceof HTMLFormElement) || event.target.id !== "score-form") return;
+  event.preventDefault();
+  submitLeaderboard();
+}
+
+function loadBoard(difficulty, { force = false } = {}) {
+  if (!GAME_CONFIG.leaderboard.enabled) return;
+  const current = ui.boards[difficulty];
+  if (!force && current && (current.status === "loading" || current.status === "ready")) return;
+  ui.boards[difficulty] = { status: "loading", rows: current?.rows || [] };
+  fetchTop10(difficulty).then((result) => {
+    ui.boards[difficulty] = result.ok
+      ? { status: "ready", rows: result.rows }
+      : { status: "error", rows: [] };
+    if (boardIsVisible(difficulty) && document.activeElement?.id !== "player-name") render();
+  });
+}
+
+function boardIsVisible(difficulty) {
+  if (ui.screen === "title") return ui.boardTab === difficulty;
+  if (ui.screen === "gameover" && ui.entry === "done") return ui.run?.difficulty?.id === difficulty;
+  return false;
+}
+
+async function submitLeaderboard() {
+  if (ui.entry !== "offer" || !ui.run) return;
+  const field = document.getElementById("player-name");
+  const name = field ? field.value : ui.nameDraft;
+  ui.nameDraft = name;
+  const check = validatePlayerName(name);
+  if (!check.ok) {
+    ui.entryError = leaderboardErrorText(check.error);
+    render();
+    return;
+  }
+  ui.entry = "submitting";
+  ui.entryError = "";
+  render();
+  const result = await submitScore({
+    p_name: check.name,
+    p_difficulty: ui.run.difficulty.id,
+    p_score: ui.run.totalScore,
+    p_entrees: ui.run.totalCompleted,
+  });
+  if (!result.ok) {
+    ui.entry = "offer";
+    ui.entryError = leaderboardErrorText(result.error);
+    render();
+    return;
+  }
+  savePlayerName(check.name);
+  ui.nameDraft = check.name;
+  ui.submitResult = result;
+  ui.entry = "done";
+  ui.boards[ui.run.difficulty.id] = { status: "loading", rows: [] };
+  render();
+  loadBoard(ui.run.difficulty.id, { force: true });
+}
+
+function scoreEntry(run, diffLabel) {
+  if (ui.entry !== "offer" && ui.entry !== "submitting") return "";
+  const busy = ui.entry === "submitting";
+  const error = ui.entryError ? `<p class="name-error" id="name-error">${esc(ui.entryError)}</p>` : "";
+  return `<form class="entry-box" id="score-form" action="#">
+    <h2>Add your name to the leaderboard</h2>
+    <p class="post-to">This score will post to the <strong>${esc(diffLabel)}</strong> board.</p>
+    <div class="name-row">
+      <input class="name-field" id="player-name" name="player-name" type="text" maxlength="12" value="${esc(ui.nameDraft)}" autocomplete="nickname" spellcheck="false" aria-label="Your name" ${busy ? "disabled" : ""} />
+      <span class="name-count" id="name-count">${ui.nameDraft.length}/12</span>
+    </div>
+    ${error}
+    <div class="entry-actions">
+      <button class="btn small" type="submit" ${busy ? "disabled" : ""}>Submit</button>
+      <button class="text-link" type="button" data-action="skip-score" ${busy ? "disabled" : ""}>Skip</button>
+    </div>
+  </form>`;
+}
+
+function placeCallout(result, diffLabel) {
+  if (!result.improved) {
+    return `<div class="place-callout is-miss"><p class="k">Leaderboard</p><p class="v">Your best on ${esc(diffLabel)} is still ${formatInt(result.bestScore)} (#${result.rank}).</p></div>`;
+  }
+  return `<div class="place-callout"><p class="k">Leaderboard</p><p class="v">You placed #${result.rank} on ${esc(diffLabel)}</p></div>`;
+}
+
+function boardCard({ tabs, difficulty, kicker, title, rankNote = "" }) {
+  const board = ui.boards[difficulty] || { status: "loading", rows: [] };
+  const you = ui.nameDraft || loadPlayerName();
+  const tabsHtml = tabs
+    ? `<div class="board-tabs" role="tablist" aria-label="Leaderboard difficulty">${["easy", "normal", "hard"].map((id) => {
+      const on = id === difficulty;
+      return `<button type="button" class="board-tab${on ? " is-on" : ""}" role="tab" data-action="board-tab" data-difficulty="${id}" aria-selected="${on}">${GAME_CONFIG.difficulties[id].label}</button>`;
+    }).join("")}</div>`
+    : "";
+  return `<aside class="board-card" aria-label="${esc(title)}">
+    <div class="board-head">
+      <p class="board-kicker">${esc(kicker)}</p>
+      <h2>${esc(title)}</h2>
+    </div>
+    ${tabsHtml}
+    ${boardBody(board, you)}
+    ${rankNote ? `<p class="rank-foot"><strong>${esc(you)}</strong> · ${rankNote}</p>` : ""}
+  </aside>`;
+}
+
+function boardBody(board, you) {
+  if (board.status === "error") {
+    return `<div class="board-empty"><p>Leaderboard unavailable right now.</p></div>`;
+  }
+  if (board.status !== "ready") {
+    return `<div class="board-empty is-quiet"><p>Loading scores…</p></div>`;
+  }
+  if (!board.rows.length) {
+    return `<div class="board-empty"><p>No scores yet. Be the first.</p></div>`;
+  }
+  const rows = board.rows.map((row) => {
+    const yours = samePlayerName(row.name, you);
+    const top = row.rank <= 3 ? " top" : "";
+    const pill = yours ? ` <span class="you-pill">You</span>` : "";
+    return `<tr class="${top}${yours ? " is-you" : ""}"><td class="rank">${row.rank}</td><td class="name">${esc(row.name)}${pill}</td><td class="num">${formatInt(row.score)}</td><td class="date">${esc(formatBoardDate(row.created_at))}</td></tr>`;
+  }).join("");
+  return `<table class="board-table"><thead><tr><th class="rank">#</th><th class="name">Name</th><th class="num">Score</th><th class="date">Date</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function loadPlayerName() {
+  try {
+    return localStorage.getItem(GAME_CONFIG.storageNameKey) || "";
+  } catch {
+    return "";
+  }
+}
+
+function savePlayerName(name) {
+  try {
+    localStorage.setItem(GAME_CONFIG.storageNameKey, name);
+  } catch {
+    /* private mode */
+  }
 }
 
 function bestMarkup(best) {

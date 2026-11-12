@@ -67,8 +67,8 @@ async function tapPan(page, pan) {
   await loc.click();
 }
 
-async function fit(page, label) {
-  const result = await page.evaluate(() => {
+async function fit(page, label, { scrollScreen = false } = {}) {
+  const result = await page.evaluate((scrollScreen) => {
     const de = document.documentElement;
     const vw = de.clientWidth;
     const vh = de.clientHeight;
@@ -78,6 +78,8 @@ async function fit(page, label) {
       const rect = el.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) continue;
       if (inWells(el)) continue;
+      const inScrollScreen = scrollScreen && el.closest(".screen-title, .overlay");
+      if (inScrollScreen && rect.top >= -2 && rect.left >= -2 && rect.right <= vw + 2) continue;
       if (rect.left < -2 || rect.top < -2 || rect.right > vw + 2 || rect.bottom > vh + 2) {
         offenders.push({
           tag: el.tagName,
@@ -96,7 +98,7 @@ async function fit(page, label) {
       vw,
       vh,
     };
-  });
+  }, scrollScreen);
   if (result.scrollX > 1 || result.scrollY > 1 || result.offenders.length) {
     throw new Error(`${label} overflow ${JSON.stringify(result)}`);
   }
@@ -203,6 +205,31 @@ async function shot(page, name) {
   await page.screenshot({ path: `${SHOTS}/${name}.png` });
 }
 
+function installBoard(page, posts) {
+  return page.route("**://mrfpyfnyyvnahacdvskf.supabase.co/**", async (route) => {
+    const request = route.request();
+    if (request.method() === "POST") {
+      const body = JSON.parse(request.postData() || "{}");
+      posts.push(body);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ rank: 4, best_score: body.p_score, improved: true }]),
+      });
+      return;
+    }
+    const difficulty = new URL(request.url()).searchParams.get("difficulty") || "hard";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        { difficulty, rank: 1, name: "PicoQueen", score: 1840, entrees: 9, created_at: "2026-11-08T00:00:00.000Z" },
+        { difficulty, rank: 4, name: "LineCook", score: 1200, entrees: 8, created_at: "2026-11-11T00:00:00.000Z" },
+      ]),
+    });
+  });
+}
+
 const server = await startServer();
 const { port } = server.address();
 const browser = await chromium.launch({
@@ -216,6 +243,8 @@ try {
   const desktop = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   await desktop.grantPermissions(["clipboard-read", "clipboard-write"]);
   const page = await desktop.newPage();
+  const posts = [];
+  await installBoard(page, posts);
   page.on("pageerror", (err) => errors.push(err.message));
   page.on("console", (msg) => {
     if (msg.type() === "error") errors.push(msg.text());
@@ -266,6 +295,19 @@ try {
   assert(notes[0].includes("tacos") && notes[0].includes("60s"), notes[0]);
   assert(notes[1].includes("salads and quesadillas") && notes[1].includes("70s"), notes[1]);
   assert(notes[2].includes("last round"), notes[2]);
+  await fit(page, "desktop game over", { scrollScreen: true });
+  await page.locator("#score-form").waitFor();
+  await page.locator("#player-name").click();
+  await page.keyboard.press("q");
+  assert((await page.locator("#player-name").inputValue()) === "q", "name field ate a shortcut");
+  assert(await page.locator("section[data-screen='gameover']").isVisible(), "typing left game over");
+  await page.locator("#player-name").fill("LineCook");
+  await page.locator("#score-form button[type='submit']").click();
+  await page.locator(".place-callout").waitFor();
+  const placed = await page.locator(".place-callout .v").innerText();
+  assert(placed.includes("You placed #4 on Normal"), placed);
+  await page.locator(".board-table tr.is-you").waitFor();
+  assert(posts.length === 1 && posts[0].p_name === "LineCook" && posts[0].p_difficulty === "normal", JSON.stringify(posts));
   await fit(page, "desktop game over");
   await shot(page, "desktop-over");
   const count = await page.locator("#final-count").innerText();
@@ -362,12 +404,15 @@ try {
 
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const hand = await phone.newPage();
+  await installBoard(hand, []);
   hand.on("pageerror", (err) => errors.push(`phone ${err.message}`));
   await hand.goto(`http://127.0.0.1:${port}/?seed=11&difficulty=normal`);
   await hand.locator("section[data-screen='title']").waitFor();
   await noBrand(hand);
-  await fit(hand, "phone title");
+  await fit(hand, "phone title", { scrollScreen: true });
   await inView(hand, "[data-action='play']");
+  const playBox = await hand.locator("[data-action='play']").boundingBox();
+  assert(playBox.y + playBox.height < 844, `play below the fold ${playBox.y}`);
   await shot(hand, "phone-title");
   await hand.locator("[data-action='play']").click();
   await hand.locator("section[data-screen='play']").waitFor();
@@ -401,7 +446,7 @@ try {
 
   const phoneNotes = await finishRun(hand, { tap: true });
   assert(phoneNotes.length === 3, phoneNotes.join(" | "));
-  await fit(hand, "phone game over");
+  await fit(hand, "phone game over", { scrollScreen: true });
   await inView(hand, "[data-action='again']");
   await shot(hand, "phone-over");
   const phoneCount = (await hand.locator("#final-count").innerText()).replace(/\s+/g, " ");
