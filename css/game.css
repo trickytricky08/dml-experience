@@ -428,7 +428,7 @@ button:focus-visible {
   display: flex; align-items: center; justify-content: center;
 }
 .food-art { width: 100%; height: 100%; display: block; }
-.scene { position: absolute; inset: 6px 8px 28px; }
+.scene { position: absolute; inset: 2px 4px 4px; }
 .scene svg { width: 100%; height: 100%; display: block; }
 .surface .scoop.ghost { position: relative; z-index: 2; }
 .layer-drop { animation: layer-in 0.18s ease-out; }
@@ -733,9 +733,9 @@ html[data-mode="lockout"] .phone-trash {
   .phone-trash {
     flex: 1 1 auto;
     display: flex; align-items: center; justify-content: center;
-    background: transparent;
-    color: var(--foam);
-    border: 2px solid rgba(243, 230, 208, 0.55);
+    background: #3a3f44;
+    color: #f7f0e4;
+    border: 2px solid #2a2e32;
     box-shadow: none;
     border-radius: 12px;
     font-family: var(--font-display); font-weight: 600; font-size: 14px;

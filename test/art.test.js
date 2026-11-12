@@ -54,4 +54,11 @@ test("the scene drawing names each layer", () => {
   const sealed = sceneSvg(layerModel({ opened: true, packaging: "foil", wrapped: true }));
   assert.match(sealed, /data-layer="wrap-foil"/);
   assert.doesNotMatch(sealed, /data-layer="tomato"/);
+  const tacos = sceneSvg(layerModel({
+    opened: true,
+    packaging: "container",
+    scooped: ["crispy-corn", "chicken"],
+  }));
+  assert.equal(tacos.match(/data-layer="crispy-corn"/g).length, 3);
+  assert.equal(tacos.match(/data-layer="chicken"/g).length, 3);
 });

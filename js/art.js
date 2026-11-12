@@ -50,102 +50,189 @@ export function layerModel({ opened = false, packaging, builtinIds = [], scooped
 function icon(id, x, y, scale, extra = "") {
   const body = PAN_ART[id];
   if (!body) return "";
-  return `<g data-layer="${id}" transform="translate(${x} ${y}) scale(${scale})" ${extra}>${body}</g>`;
+  const sx = Array.isArray(scale) ? scale[0] : scale;
+  const sy = Array.isArray(scale) ? scale[1] : scale;
+  return `<g data-layer="${id}" transform="translate(${x} ${y}) scale(${sx} ${sy})" ${extra}>${body}</g>`;
+}
+
+const SCENE_W = 1100;
+const SCENE_H = 210;
+const TACO_X = [350, 550, 750];
+
+function place(id, cx, cy, scale) {
+  const sx = Array.isArray(scale) ? scale[0] : scale;
+  const sy = Array.isArray(scale) ? scale[1] : scale;
+  return icon(id, cx - 50 * sx, cy - 42 * sy, scale);
 }
 
 function foilSheet() {
-  return `<g data-layer="foil" fill="none" stroke="${INK}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M28 34 L210 26 L222 168 L36 176 Z" fill="#9AA3AB" stroke="none" opacity="0.18" transform="translate(3 4)"/>
-    <path d="M24 30 L206 22 L218 164 L32 172 Z" fill="#D9DCE0"/>
-    <path d="M40 36 L104 30 L96 78 L36 82 Z" fill="#F7F8F9" stroke="none"/>
-    <path d="M112 28 L198 34 L190 84 L108 78 Z" fill="#C5CAD0" stroke="none" opacity="0.55"/>
-    <path d="M36 96 L110 90 L102 160 L40 164 Z" fill="#C5CAD0" stroke="none" opacity="0.45"/>
-    <path d="M118 92 L206 86 L198 158 L114 156 Z" fill="#F7F8F9" stroke="none" opacity="0.8"/>
-    <path d="M48 58 L96 48 L140 86 L188 64" fill="none" stroke-width="1.6"/>
-    <path d="M58 124 L108 116 L156 148" fill="none" stroke-width="1.6"/>
-    <path d="M196 40 L214 58 L206 78" fill="#EEF1F4"/>
+  return `<g data-layer="foil" fill="none" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M16 28 L1084 14 L1096 196 L28 208 Z" fill="#9AA3AB" stroke="none" opacity="0.18" transform="translate(4 3)"/>
+    <path d="M6 22 L1072 8 L1084 188 L18 200 Z" fill="#D9DCE0"/>
+    <path d="M40 34 L420 24 L400 100 L30 110 Z" fill="#F7F8F9" stroke="none"/>
+    <path d="M450 20 L1040 32 L1020 108 L430 96 Z" fill="#C5CAD0" stroke="none" opacity="0.55"/>
+    <path d="M34 116 L480 102 L458 184 L40 192 Z" fill="#C5CAD0" stroke="none" opacity="0.4"/>
+    <path d="M500 108 L1048 96 L1028 180 L484 188 Z" fill="#F7F8F9" stroke="none" opacity="0.75"/>
+    <path d="M90 70 L380 52 L620 112 L860 78" fill="none" stroke-width="2.4"/>
+    <path d="M100 150 L420 134 L760 170" fill="none" stroke-width="2.2"/>
+    <path d="M980 40 L1056 70 L1024 104" fill="#EEF1F4"/>
+  </g>`;
+}
+
+function tortilla() {
+  return `<g data-layer="soft-flour" fill="none" stroke="${INK}" stroke-width="2.8">
+    <ellipse cx="550" cy="108" rx="430" ry="84" fill="#F4E2BC"/>
+    <ellipse cx="550" cy="106" rx="360" ry="62" fill="#F8EDD4" stroke="none"/>
+    <path d="M220 96c80-24 170-28 270-8" stroke-width="2.2" opacity="0.4"/>
+    <path d="M200 132c110 18 300 16 420-14" stroke-width="2" opacity="0.35"/>
+    <path d="M430 78c50 12 80 36 64 58" stroke-width="1.8" opacity="0.3"/>
   </g>`;
 }
 
 function bowlVessel() {
-  return `<g data-layer="bowl" fill="none" stroke="${INK}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-    <ellipse cx="124" cy="128" rx="90" ry="48" fill="#2C1810" stroke="none" opacity="0.12"/>
-    <ellipse cx="120" cy="118" rx="92" ry="52" fill="#E8D5B0"/>
-    <ellipse cx="120" cy="116" rx="74" ry="38" fill="#F7F0E4"/>
-    <path d="M48 118 C82 100 158 100 192 118" stroke-width="1.5" opacity="0.35"/>
-    <ellipse cx="92" cy="100" rx="18" ry="6" fill="#fff" stroke="none" opacity="0.45" transform="rotate(-14 92 100)"/>
+  return `<g data-layer="bowl" fill="none" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="566" cy="156" rx="440" ry="44" fill="#2C1810" stroke="none" opacity="0.12"/>
+    <ellipse cx="550" cy="132" rx="450" ry="70" fill="#E8D5B0"/>
+    <ellipse cx="550" cy="126" rx="370" ry="50" fill="#F7F0E4"/>
+    <path d="M200 128 C340 86 760 86 900 128" stroke-width="2.2" opacity="0.35"/>
+    <ellipse cx="360" cy="96" rx="70" ry="14" fill="#fff" stroke="none" opacity="0.4" transform="rotate(-12 360 96)"/>
   </g>`;
 }
 
 function trayVessel() {
-  return `<g data-layer="container" fill="none" stroke="${INK}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M26 78 L214 78 L226 170 L14 170 Z" fill="#2C1810" stroke="none" opacity="0.1" transform="translate(2 3)"/>
-    <path d="M24 72 L216 72 L226 164 Q226 174 216 174 L24 174 Q14 174 14 164 Z" fill="#C4A574"/>
-    <path d="M36 86 L204 86 L210 156 Q210 164 200 164 L40 164 Q30 164 30 156 Z" fill="#E8D5B0"/>
-    <ellipse cx="72" cy="100" rx="22" ry="7" fill="#fff" stroke="none" opacity="0.35" transform="rotate(-8 72 100)"/>
+  return `<g data-layer="container" fill="none" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M24 62 L1076 62 L1092 186 L8 186 Z" fill="#2C1810" stroke="none" opacity="0.1" transform="translate(3 4)"/>
+    <path d="M16 48 L1084 48 L1096 176 Q1096 198 1074 198 L26 198 Q4 198 4 176 Z" fill="#C4A574"/>
+    <path d="M40 70 L1060 70 L1068 164 Q1068 180 1050 180 L50 180 Q32 180 32 164 Z" fill="#E8D5B0"/>
+    <ellipse cx="160" cy="92" rx="56" ry="12" fill="#fff" stroke="none" opacity="0.3" transform="rotate(-6 160 92)"/>
   </g>`;
 }
 
 function greens() {
-  return icon("lettuce", 78, 78, 0.85) + icon("lettuce", 108, 86, 0.7);
+  return `<g data-layer="supergreens">${place("lettuce", 340, 122, 2.15)}${place("lettuce", 480, 112, 2)}${place("lettuce", 620, 120, 2.1)}${place("lettuce", 760, 114, 1.95)}${place("lettuce", 880, 124, 1.85)}</g>`;
 }
 
 function tortillaCheese() {
-  return `<g data-layer="quesadilla-base" fill="none" stroke="${INK}" stroke-width="2">
-    <ellipse cx="120" cy="118" rx="70" ry="36" fill="#F3E0B0"/>
-    <ellipse cx="120" cy="116" rx="52" ry="24" fill="#F0D56A" stroke="none"/>
-  </g>` + icon("cheese", 86, 86, 0.42);
+  return `<g data-layer="quesadilla-base" fill="none" stroke="${INK}" stroke-width="2.8">
+    <ellipse cx="550" cy="108" rx="430" ry="80" fill="#F3E0B0"/>
+    <path d="M550 32 V184" stroke-width="1.8" opacity="0.4"/>
+    <ellipse cx="360" cy="110" rx="160" ry="58" fill="#F0D56A" stroke="none"/>
+  </g>${place("cheese", 300, 104, [1.8, 1.45])}`;
 }
 
-function scoopGraphic(id, index) {
-  if (id === "soft-flour") {
-    return `<g data-layer="soft-flour" fill="none" stroke="${INK}" stroke-width="2">
-      <ellipse cx="120" cy="112" rx="78" ry="46" fill="#F4E2BC"/>
-      <ellipse cx="120" cy="110" rx="58" ry="32" fill="#F8EDD4" stroke="none"/>
-      <path d="M70 112c16-10 40-12 62-4" stroke-width="1.5" opacity="0.4"/>
-      <path d="M64 128c22 8 70 8 96-6" stroke-width="1.4" opacity="0.35"/>
-    </g>`;
+const PILES = {
+  "white-rice": [470, 114, 2.25, 3, 80],
+  "brown-rice": [470, 114, 2.25, 3, 80],
+  "black-beans": [710, 118, 2.1, 3, 74],
+  "pinto-beans": [710, 118, 2.1, 3, 74],
+  chicken: [590, 96, 2.15, 2, 56],
+  steak: [590, 96, 2.15, 2, 56],
+  barbacoa: [590, 92, 2.3, 2, 62],
+  carnitas: [570, 98, 2.2, 2, 60],
+  sofritas: [590, 104, 2.05, 2, 54],
+  brisket: [560, 96, 2.15, 2, 58],
+  fajitas: [560, 106, 2.2, 2, 72],
+  tomato: [500, 110, 1.95, 2, 50],
+  corn: [710, 108, 1.95, 2, 50],
+  green: [400, 104, 1.8, 1, 0],
+  red: [820, 104, 1.8, 1, 0],
+  "sour-cream": [600, 90, 1.6, 1, 0],
+  cheese: [560, 112, 2.1, 2, 66],
+  guac: [830, 116, 1.9, 1, 0],
+  queso: [650, 118, 1.8, 1, 0],
+  lettuce: [590, 84, 2.1, 2, 74],
+  "honey-vin": [930, 122, 1.35, 1, 0],
+};
+
+function pile(id, mode) {
+  let [x, y, s, n, gap] = PILES[id] || [550, 110, 1.8, 1, 0];
+  if (mode === "bowl") {
+    y += 6;
+    s *= 0.92;
+    gap *= 0.92;
+  } else if (mode === "quesadilla") {
+    x = 260 + (x - 430) * 0.5;
+    y += 2;
+    s *= 0.88;
+    gap *= 0.6;
+    n = Math.min(n, 2);
   }
-  if (id === "crispy-corn") {
-    return icon("crispy-corn", 28, 70, 0.55) + icon("crispy-corn", 78, 62, 0.62) + icon("crispy-corn", 128, 70, 0.55);
+  let out = "";
+  for (let i = 0; i < n; i++) {
+    const ox = (i - (n - 1) / 2) * gap;
+    out += place(id, x + ox, y + (i % 2 ? 6 : -2), s * (i === 0 ? 1 : 0.94));
   }
-  if (id === "supergreens") return `<g data-layer="supergreens">${greens()}</g>`;
-  const col = index % 3;
-  const row = Math.floor(index / 3);
-  const x = 62 + col * 28 - row * 8;
-  const y = 78 - index * 9;
-  return icon(id, x, y, 0.46);
+  return out;
+}
+
+function standingShell(cx) {
+  const d = `M${cx - 58} 30 C${cx - 72} 96 ${cx - 38} 156 ${cx} 168 C${cx + 38} 156 ${cx + 72} 96 ${cx + 58} 30`;
+  const inner = `M${cx - 32} 52 C${cx - 38} 100 ${cx - 16} 142 ${cx} 152 C${cx + 16} 142 ${cx + 38} 100 ${cx + 32} 52`;
+  return `<g data-layer="crispy-corn" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="${d}" stroke="${INK}" stroke-width="48"/>
+    <path d="${d}" stroke="#E8C84A" stroke-width="42"/>
+    <path d="${d}" stroke="#C49220" stroke-width="18"/>
+    <path d="${inner}" stroke="#F4E08A" stroke-width="7" opacity="0.85"/>
+    <circle cx="${cx - 40}" cy="88" r="2.6" fill="#A87818"/>
+    <circle cx="${cx + 38}" cy="104" r="2.4" fill="#A87818"/>
+    <circle cx="${cx - 30}" cy="124" r="2.1" fill="#C49220"/>
+    <circle cx="${cx + 28}" cy="74" r="2" fill="#C49220"/>
+  </g>`;
+}
+
+function tacoShells() {
+  return TACO_X.map(standingShell).join("");
+}
+
+function tacoFilling(id) {
+  return TACO_X.map((x) => place(id, x, 96, 1.45)).join("");
 }
 
 function sealed(packaging) {
   if (packaging === "bowl") {
-    return `<g data-layer="wrap-bowl" fill="none" stroke="${INK}" stroke-width="2" stroke-linejoin="round">
-      <ellipse cx="124" cy="132" rx="90" ry="46" fill="#2C1810" stroke="none" opacity="0.12"/>
-      <ellipse cx="120" cy="122" rx="92" ry="50" fill="#E8D5B0"/>
-      <ellipse cx="120" cy="108" rx="86" ry="40" fill="#F7F0E4" opacity="0.92"/>
-      <ellipse cx="120" cy="104" rx="70" ry="28" fill="#fff" stroke="none" opacity="0.28"/>
-      <path d="M48 108c24-16 80-16 112 0" stroke-width="1.6" opacity="0.4"/>
-      <circle cx="168" cy="96" r="7" fill="#C4A574"/>
+    return `<g data-layer="wrap-bowl" fill="none" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round">
+      <ellipse cx="566" cy="158" rx="440" ry="42" fill="#2C1810" stroke="none" opacity="0.12"/>
+      <ellipse cx="550" cy="136" rx="450" ry="68" fill="#E8D5B0"/>
+      <ellipse cx="550" cy="114" rx="414" ry="54" fill="#F7F0E4" opacity="0.94"/>
+      <ellipse cx="550" cy="100" rx="280" ry="28" fill="#fff" stroke="none" opacity="0.28"/>
+      <path d="M180 118c120-30 400-30 560 0" stroke-width="2.2" opacity="0.4"/>
+      <circle cx="900" cy="96" r="14" fill="#C4A574"/>
     </g>`;
   }
   if (packaging === "container") {
-    return `<g data-layer="wrap-container" fill="none" stroke="${INK}" stroke-width="2" stroke-linejoin="round">
-      <path d="M24 80 L216 80 L226 164 Q226 176 214 176 L26 176 Q14 176 14 164 Z" fill="#C4A574"/>
-      <path d="M32 88 L208 88 L214 150 Q214 160 204 160 L36 160 Q26 160 26 150 Z" fill="#E8D5B0"/>
-      <path d="M30 96 L210 90 L206 78 L36 84 Z" fill="#F7F0E4"/>
-      <path d="M48 92h144" stroke-width="1.5" opacity="0.35"/>
-      <circle cx="176" cy="86" r="6" fill="#C4A574"/>
+    return `<g data-layer="wrap-container" fill="none" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round">
+      <path d="M16 58 L1084 58 L1096 176 Q1096 198 1074 198 L26 198 Q4 198 4 176 Z" fill="#C4A574"/>
+      <path d="M40 78 L1060 78 L1068 156 Q1068 172 1050 172 L50 172 Q32 172 32 156 Z" fill="#E8D5B0"/>
+      <path d="M28 92 L1072 78 L1056 48 L44 62 Z" fill="#F7F0E4"/>
+      <path d="M90 84h920" stroke-width="1.8" opacity="0.35"/>
+      <circle cx="960" cy="70" r="13" fill="#C4A574"/>
     </g>`;
   }
-  return `<g data-layer="wrap-foil" fill="none" stroke="${INK}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-    <ellipse cx="126" cy="128" rx="78" ry="22" fill="#2C1810" stroke="none" opacity="0.12"/>
-    <path d="M36 108 C36 86 70 74 120 74 C174 74 208 88 208 110 C208 132 174 146 120 146 C70 146 36 130 36 108 Z" fill="#E4E7EA"/>
-    <path d="M48 100 C70 88 100 86 120 96 C150 110 180 100 196 108" stroke-width="1.5" opacity="0.55"/>
-    <path d="M52 116 C80 128 150 128 190 112" stroke-width="1.4" opacity="0.4"/>
-    <path d="M196 96 L214 108 L206 124 L188 114 Z" fill="#F7F8F9"/>
-    <ellipse cx="214" cy="114" rx="10" ry="14" fill="#C4784A"/>
-    <ellipse cx="214" cy="118" rx="6" ry="8" fill="#F2EBD0" stroke="none"/>
+  return `<g data-layer="wrap-foil" fill="none" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="580" cy="150" rx="340" ry="32" fill="#2C1810" stroke="none" opacity="0.12"/>
+    <path d="M140 112 C140 58 300 36 550 36 C820 36 980 64 980 114 C980 164 820 188 550 188 C300 188 140 158 140 112 Z" fill="#E4E7EA"/>
+    <path d="M190 94 C310 70 430 74 550 98 C680 124 820 104 920 118" stroke-width="2.4" opacity="0.5"/>
+    <path d="M200 136 C340 164 760 164 900 124" stroke-width="2.2" opacity="0.4"/>
+    <path d="M920 78 L1010 112 L976 156 L900 124 Z" fill="#F7F8F9"/>
+    <ellipse cx="1004" cy="124" rx="22" ry="28" fill="#C4784A"/>
+    <ellipse cx="1004" cy="130" rx="12" ry="16" fill="#F2EBD0" stroke="none"/>
   </g>`;
+}
+
+function sceneMode(model) {
+  const ids = new Set(model.map((layer) => layer.id));
+  if (ids.has("crispy-corn")) return "tacos";
+  if (model.some((layer) => layer.role === "builtin" && layer.id === "cheese")) return "quesadilla";
+  if (model.some((layer) => layer.role === "base" && layer.id === "bowl")) return "bowl";
+  return "burrito";
+}
+
+function drawScoop(id, mode) {
+  if (id === "soft-flour") return tortilla();
+  if (id === "crispy-corn") return tacoShells();
+  if (id === "supergreens") return `<g data-layer="supergreens">${greens()}</g>`;
+  if (mode === "tacos") return tacoFilling(id);
+  return pile(id, mode);
 }
 
 export function sceneSvg(model, { ghostId = "", drop = false } = {}) {
@@ -155,25 +242,23 @@ export function sceneSvg(model, { ghostId = "", drop = false } = {}) {
     const packaging = seal.id.replace(/^wrap-/, "");
     body = sealed(packaging);
   } else {
-    let scoopIndex = 0;
+    const mode = sceneMode(model);
+    const scoops = model.filter((layer) => layer.role !== "base");
     for (const layer of model) {
       if (layer.role === "base") {
         if (layer.id === "bowl") body += bowlVessel();
         else if (layer.id === "container") body += trayVessel();
         else body += foilSheet();
-      } else if (layer.id === "supergreens") body += `<g data-layer="supergreens">${greens()}</g>`;
-      else if (layer.role === "builtin" && layer.id === "cheese") body += tortillaCheese();
-      else {
-        const mark = drop && scoopIndex === model.filter((item) => item.role === "scoop" || item.role === "builtin").length - 1;
-        const graphic = scoopGraphic(layer.id, scoopIndex);
-        body += mark ? `<g class="layer-drop">${graphic}</g>` : graphic;
-        scoopIndex += 1;
+        if (mode === "quesadilla") body += tortillaCheese();
+        continue;
       }
+      if (mode === "quesadilla" && layer.role === "builtin" && layer.id === "cheese") continue;
+      const graphic = drawScoop(layer.id, mode);
+      const last = drop && layer === scoops[scoops.length - 1];
+      body += last ? `<g class="layer-drop">${graphic}</g>` : graphic;
     }
-    if (ghostId) {
-      body += `<g class="layer-ghost" opacity="0.38">${scoopGraphic(ghostId, scoopIndex)}</g>`;
-    }
+    if (ghostId) body += `<g class="layer-ghost" opacity="0.38">${drawScoop(ghostId, mode)}</g>`;
   }
   const ids = model.map((layer) => layer.id).join(" ");
-  return `<div class="scene" data-layers="${ids}"><svg viewBox="0 0 240 200" aria-hidden="true">${body}</svg></div>`;
+  return `<div class="scene" data-layers="${ids}"><svg viewBox="0 0 ${SCENE_W} ${SCENE_H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${body}</svg></div>`;
 }
