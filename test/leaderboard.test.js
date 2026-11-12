@@ -24,8 +24,11 @@ test("player names match the server rules", () => {
   assert.equal(samePlayerName("Line Cook", "line  cook"), false);
 });
 
-test("board dates are a short month and day", () => {
-  assert.equal(formatBoardDate("2026-11-11T18:00:00Z"), "Nov 11");
+test("board dates are a short month and day in local time", () => {
+  const iso = "2026-11-11T18:00:00Z";
+  const expected = new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  assert.equal(formatBoardDate(iso), expected);
+  assert.match(expected, /^[A-Z][a-z]{2} \d{1,2}$/);
   assert.equal(formatBoardDate("not-a-date"), "");
 });
 

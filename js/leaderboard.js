@@ -29,7 +29,7 @@ export function samePlayerName(a, b) {
 export function formatBoardDate(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function maxTicketScoops(round, config = GAME_CONFIG) {
