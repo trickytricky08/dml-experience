@@ -189,6 +189,36 @@ test("a generated hard ticket completes only in ticket order", () => {
   assert.equal(playerIngredients(generated).length > 0, true);
 });
 
+test("a quesadilla takes soft flour, and taco shells are off the ticket", () => {
+  const quesadilla = ticket("container", ["soft-flour", "chicken", "fajitas"]);
+  quesadilla.entreeType = "quesadilla";
+  quesadilla.autoScoops = [{ id: "cheese", label: "Cheese", builtin: true }];
+
+  let loose = createPlay(quesadilla, { strictOrder: false });
+  loose = applyInput(loose, "container").play;
+  const shells = applyInput(loose, "crispy-corn");
+  assert.equal(shells.event.kind, "off-ticket");
+  loose = applyInput(shells.play, "trash").play;
+  for (const pan of ["container", "fajitas", "chicken", "soft-flour", "wrap"]) {
+    const result = applyInput(loose, pan);
+    assert.equal(result.event.type, "correct", pan);
+    loose = result.play;
+  }
+  assert.equal(loose.phase, "closed");
+
+  let strict = createPlay(quesadilla, { strictOrder: true });
+  strict = applyInput(strict, "container").play;
+  const early = applyInput(strict, "chicken");
+  assert.equal(early.event.kind, "out-of-order");
+  strict = applyInput(early.play, "trash").play;
+  for (const pan of ["container", "soft-flour", "chicken", "fajitas", "wrap"]) {
+    const result = applyInput(strict, pan);
+    assert.equal(result.event.type, "correct", pan);
+    strict = result.play;
+  }
+  assert.equal(strict.phase, "closed");
+});
+
 test("normal strictOrder is off and hard is on", () => {
   assert.equal(GAME_CONFIG.difficulties.easy.strictOrder, false);
   assert.equal(GAME_CONFIG.difficulties.normal.strictOrder, false);

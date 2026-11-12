@@ -85,7 +85,7 @@ export function generateTicket(round, rng, priorTickets = [], config = GAME_CONF
   const protein = pick(proteinBag(round, config), rng);
   const ids = [];
 
-  if (type === "burrito") ids.push("soft-flour");
+  if (type === "burrito" || type === "quesadilla") ids.push("soft-flour");
   if (type === "tacos") ids.push("crispy-corn");
 
   const riceAndBeans = type === "burrito" || type === "bowl" || type === "salad";

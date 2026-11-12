@@ -61,4 +61,20 @@ test("the scene drawing names each layer", () => {
   }));
   assert.equal(tacos.match(/data-layer="crispy-corn"/g).length, 3);
   assert.equal(tacos.match(/data-layer="chicken"/g).length, 3);
+  const press = sceneSvg(layerModel({
+    opened: true,
+    packaging: "container",
+    builtinIds: ["cheese"],
+    scooped: [],
+  }));
+  assert.match(press, /data-layer="container"/);
+  assert.doesNotMatch(press, /data-layer="quesadilla-base"/);
+  const folded = sceneSvg(layerModel({
+    opened: true,
+    packaging: "container",
+    builtinIds: ["cheese"],
+    scooped: ["soft-flour", "fajitas"],
+  }));
+  assert.match(folded, /data-layer="quesadilla-base"/);
+  assert.match(folded, /data-layer="fajitas"/);
 });

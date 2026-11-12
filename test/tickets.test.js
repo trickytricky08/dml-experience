@@ -42,8 +42,8 @@ test("ceilings match the legal maximums", () => {
   assert.equal(ingredientCeiling("salad", { veggie: true, skipRice: true, skipBeans: true }, CONFIG), 10);
   assert.equal(ingredientCeiling("tacos", { veggie: false }, CONFIG), 9);
   assert.equal(ingredientCeiling("tacos", { veggie: true }, CONFIG), 8);
-  assert.equal(ingredientCeiling("quesadilla", { veggie: false }, CONFIG), 7);
-  assert.equal(ingredientCeiling("quesadilla", { veggie: true }, CONFIG), 6);
+  assert.equal(ingredientCeiling("quesadilla", { veggie: false }, CONFIG), 8);
+  assert.equal(ingredientCeiling("quesadilla", { veggie: true }, CONFIG), 7);
 });
 
 test("every generated ticket is a legal build", () => {
@@ -130,12 +130,15 @@ test("every generated ticket is a legal build", () => {
     if (ticket.entreeType === "quesadilla") {
       seen.quesadilla = true;
       assert.equal(ticket.packaging.id, "container");
+      assert.equal(ids[0], "soft-flour");
+      assert.equal(ids.filter((id) => id === "soft-flour").length, 1);
+      assert.ok(!ids.includes("crispy-corn"));
       assert.ok(!ids.includes("cheese"));
       assert.ok(!ids.includes("lettuce"));
-      assert.ok(!ids.includes("soft-flour") && !ids.includes("crispy-corn"));
       assert.deepEqual(ticket.autoScoops.map((scoop) => scoop.id), ["cheese"]);
       const sides = ids.filter((id) => QUESADILLA_SIDE_IDS.includes(id));
       assert.ok(sides.length >= 1 && sides.length <= 3, sides.join(","));
+      assert.equal(ticket.scoops[1].label, "Soft flour");
     } else if (ticket.entreeType !== "salad") {
       assert.deepEqual(ticket.autoScoops, []);
     }
@@ -220,7 +223,7 @@ const SEED_ONE_NORMAL = [
   "Hana:burrito:soft-flour+white-rice+black-beans+steak+red+queso",
   "Noah:bowl:white-rice+pinto-beans+steak+tomato+corn+red+sour-cream+lettuce",
   "Mina:salad:brown-rice+pinto-beans+fajitas+corn+green+red+sour-cream+cheese+guac+honey-vin",
-  "Quinn:quesadilla:white-rice+brown-rice+pinto-beans+sofritas+fajitas+guac+queso",
+  "Quinn:quesadilla:soft-flour+white-rice+brown-rice+pinto-beans+sofritas+fajitas+guac+queso",
   "Alex:burrito:soft-flour+white-rice+black-beans+brisket+fajitas+tomato+corn+red+sour-cream+cheese",
 ];
 

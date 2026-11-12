@@ -250,21 +250,26 @@ export function sceneSvg(model, { ghostId = "", drop = false } = {}) {
     body = sealed(packaging);
   } else {
     const mode = sceneMode(model);
+    const flour = model.some((layer) => layer.role === "scoop" && layer.id === "soft-flour");
     const scoops = model.filter((layer) => layer.role !== "base");
     for (const layer of model) {
       if (layer.role === "base") {
         if (layer.id === "bowl") body += bowlVessel();
         else if (layer.id === "container") body += mode === "quesadilla" ? pressVessel() : trayVessel();
         else body += foilSheet();
-        if (mode === "quesadilla") body += tortillaCheese();
+        if (mode === "quesadilla" && flour) body += tortillaCheese();
         continue;
       }
       if (mode === "quesadilla" && layer.role === "builtin" && layer.id === "cheese") continue;
+      if (mode === "quesadilla" && layer.id === "soft-flour") continue;
       const graphic = drawScoop(layer.id, mode);
       const last = drop && layer === scoops[scoops.length - 1];
       body += last ? `<g class="layer-drop">${graphic}</g>` : graphic;
     }
-    if (ghostId) body += `<g class="layer-ghost" opacity="0.38">${drawScoop(ghostId, mode)}</g>`;
+    if (ghostId) {
+      const ghost = mode === "quesadilla" && ghostId === "soft-flour" ? tortillaCheese() : drawScoop(ghostId, mode);
+      body += `<g class="layer-ghost" opacity="0.38">${ghost}</g>`;
+    }
   }
   const ids = model.map((layer) => layer.id).join(" ");
   const [w, h] = sceneBox(model);

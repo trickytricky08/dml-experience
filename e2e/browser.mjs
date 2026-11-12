@@ -394,6 +394,8 @@ try {
   const wrapBox = await hand.locator(".phone-wrap").boundingBox();
   const trashBox = await hand.locator(".phone-trash").boundingBox();
   assert(wrapBox.width > trashBox.width * 1.4, `wrap ${wrapBox.width} trash ${trashBox.width}`);
+  assert(trashBox.x < wrapBox.x, `trash ${trashBox.x} wrap ${wrapBox.x}`);
+  assert((await hand.locator(".phone-shell-bar [data-pan='crispy-corn'] .lbl").innerText()) === "Taco Shells");
   await tapPan(hand, "trash");
   await hand.locator(".scene").waitFor({ state: "detached" });
 

@@ -58,7 +58,7 @@ export const PACKAGING = [
 
 export const ITEM_LIST = [
   { id: "soft-flour", ticketLabel: "Soft flour", panLabel: "Soft Flour", group: "shell", food: "f-flour", row: "shell" },
-  { id: "crispy-corn", ticketLabel: "Crispy corn", panLabel: "Crispy Corn", group: "shell", food: "f-corn", row: "shell" },
+  { id: "crispy-corn", ticketLabel: "Taco shells", panLabel: "Taco Shells", group: "shell", food: "f-corn", row: "shell" },
   { id: "white-rice", ticketLabel: "White rice", panLabel: "White Rice", group: "rice", food: "f-white", row: "hot" },
   { id: "brown-rice", ticketLabel: "Brown rice", panLabel: "Brown Rice", group: "rice", food: "f-brown", row: "hot" },
   { id: "black-beans", ticketLabel: "Black beans", panLabel: "Black Beans", group: "beans", food: "f-black", row: "hot" },
@@ -109,7 +109,7 @@ export function legalIngredientIds(type) {
   if (type === "bowl") return [...RICE_IDS, ...BEAN_IDS, ...PROTEIN_IDS, ...BURRITO_OPTIONAL_IDS];
   if (type === "salad") return [...RICE_IDS, ...BEAN_IDS, ...PROTEIN_IDS, "honey-vin", ...SALAD_OPTIONAL_IDS];
   if (type === "tacos") return ["crispy-corn", ...TACO_TOPPING_IDS, ...PROTEIN_IDS, ...TACO_PREMIUM_IDS];
-  if (type === "quesadilla") return [...PROTEIN_IDS, ...QUESADILLA_SIDE_IDS, ...QUESADILLA_FILLING_IDS, ...QUESADILLA_ADDON_IDS];
+  if (type === "quesadilla") return ["soft-flour", ...PROTEIN_IDS, ...QUESADILLA_SIDE_IDS, ...QUESADILLA_FILLING_IDS, ...QUESADILLA_ADDON_IDS];
   return [];
 }
 
@@ -145,7 +145,7 @@ export function ingredientCeiling(type, opts = {}, config) {
     const sides = Math.min(3, QUESADILLA_SIDE_IDS.filter(on).length);
     const fillings = QUESADILLA_FILLING_IDS.filter(on).length;
     const addons = QUESADILLA_ADDON_IDS.filter((id) => on(id) && !(veggie && id === "guac")).length;
-    return 1 + sides + fillings + addons;
+    return 2 + sides + fillings + addons;
   }
 
   return 0;

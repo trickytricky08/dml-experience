@@ -633,8 +633,8 @@ function renderLine(wrongId, play) {
       </div>
     </div>
     <div class="phone-actions">
-      <button type="button" class="${phoneWrapClass}" data-pan="wrap">Wrap</button>
       <button type="button" class="phone-trash" data-pan="trash" aria-label="Trash, restarts this ticket">Trash</button>
+      <button type="button" class="${phoneWrapClass}" data-pan="wrap">Wrap</button>
     </div>
   </div>`;
 }

@@ -13,7 +13,7 @@ Play it at <https://trickytricky08.github.io/dml-experience/>.
 5. Press **Wrap** (Enter) when every ingredient is in. The next guest slides in. Clearing the quota ends the round early and banks the leftover seconds. If the clock hits 0:00 before the quota, the run ends.
 6. A wrong press, including an early Wrap, flashes red, locks the line, and immediately drops time off the round clock (2.0s Easy, 2.5s Normal, 3.0s Hard). Hit **Trash** to restart that ticket. Trash is instant, and trashing a clean ticket costs nothing. If the deduction hits 0:00, the round fails. **Home** or Esc asks before quitting; the clock pauses only while that question is up, and quitting does not save a best.
 
-Burritos always include **Soft flour** right after the foil. Tacos always use **Crispy corn**. One scoop per ingredient. Every entrée has a protein; **Veggie** skips the meat and puts guacamole on the ticket. Salad greens and quesadilla cheese are already in the package.
+Burritos always include **Soft flour** right after the foil. Quesadillas do the same after the container: **Soft flour**, then the fillings. Tacos always use **Taco shells**. One scoop per ingredient. Every entrée has a protein; **Veggie** skips the meat and puts guacamole on the ticket. Salad greens and quesadilla cheese are already in the package.
 
 Add `?seed=123` to replay a deal, or `?difficulty=hard` to preselect a tier. Your best score is stored in this browser.
 
@@ -25,7 +25,7 @@ Add `?seed=123` to replay a deal, or `?difficulty=hard` to preselect a tier. You
 | 2 | Bowl | X | Corn |
 | 3 | Container | C | Green |
 | 4 | Soft flour | V | Red |
-| 5 | Crispy corn | B | Sour cream |
+| 5 | Taco shells | B | Sour cream |
 | Q | White rice | N | Cheese |
 | W | Brown rice | M | Guac |
 | E | Black beans | J | Queso |
