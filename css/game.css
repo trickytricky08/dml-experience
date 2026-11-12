@@ -190,9 +190,37 @@ button:focus-visible {
 }
 .goal .v { font-size: 32px; white-space: nowrap; }
 .goal .v em, .hero-num small { font-style: normal; opacity: 0.55; font-weight: 600; font-size: 0.62em; margin: 0 0.12em; }
-.timer { display: flex; flex-direction: column; align-items: flex-end; line-height: 1; min-width: 92px; }
+.timer { position: relative; display: flex; flex-direction: column; align-items: flex-end; line-height: 1; min-width: 92px; overflow: visible; }
 .timer .v { font-size: 36px; color: var(--brass); }
 .timer .v.is-low { color: #ffb4a8; }
+.timer.is-penalty .v {
+  color: #ff5a4a;
+  animation: timer-pulse 0.4s ease-in-out 3;
+}
+.penalty-tag {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 6;
+  margin-top: 2px;
+  color: #ff5a4a;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  animation: float-off 1.15s ease-out forwards;
+}
+@keyframes timer-pulse {
+  0%, 100% { color: #ff5a4a; transform: scale(1); }
+  50% { color: #fff; transform: scale(1.14); }
+}
+@keyframes float-off {
+  0% { opacity: 1; transform: translateY(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(22px); }
+}
 
 /* ===== STAGE ===== */
 .stage {
@@ -532,7 +560,7 @@ html[data-mode="lockout"] .phone-trash {
   to { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .is-wrong, .ticket.current { animation: none; }
+  .is-wrong, .ticket.current, .timer.is-penalty .v, .penalty-tag { animation: none; }
 }
 
 /* ===== OVERLAYS ===== */

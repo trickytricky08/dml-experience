@@ -161,8 +161,14 @@ async function finishRun(page, { tap = false } = {}) {
   return notes;
 }
 
-async function mistake(page, { tap = false, pan, key, kind, shotName }) {
+function clockSeconds(text) {
+  const [min, sec] = text.trim().split(":").map(Number);
+  return min * 60 + sec;
+}
+
+async function mistake(page, { tap = false, pan, key, kind, shotName, penalty = "-2.5s" }) {
   const done = await page.locator(".ticket.current .chip.done").count();
+  const before = clockSeconds(await page.locator("#time-val").innerText());
   if (tap) await tapPan(page, pan);
   else await pressKey(page, key);
   await page.locator("#mistake-callout").waitFor({ state: "visible" });
@@ -170,6 +176,11 @@ async function mistake(page, { tap = false, pan, key, kind, shotName }) {
   assert(callout === "Mistake, hit Trash", `${kind} callout was ${callout}`);
   const wrong = await page.locator(".is-wrong:visible").count();
   assert(wrong > 0, `${kind} did not flash a control`);
+  const tag = (await page.locator("#penalty-tag").innerText()).trim();
+  assert(tag === penalty, `${kind} penalty tag was ${tag}`);
+  assert(await page.locator(".timer.is-penalty").count() === 1, `${kind} timer did not flash`);
+  const after = clockSeconds(await page.locator("#time-val").innerText());
+  assert(before - after >= 2 && before - after <= 5, `${kind} clock ${before} -> ${after}`);
   if (shotName) await shot(page, shotName);
   if (tap) {
     const other = page.locator(".pan:visible").first();
@@ -178,11 +189,12 @@ async function mistake(page, { tap = false, pan, key, kind, shotName }) {
     await pressKey(page, "z");
   }
   assert(await page.locator(".ticket.current .chip.done").count() === done, `${kind} was not locked`);
+  const trashedAt = Date.now();
   if (tap) await tapPan(page, "trash");
   else await pressKey(page, "backspace");
-  await page.locator("#lockout-note").waitFor({ state: "visible" });
-  await page.locator("#lockout-note").waitFor({ state: "hidden", timeout: 4500 });
-  assert(await page.locator("#mistake-callout").isHidden(), `${kind} callout stuck`);
+  await page.locator("#mistake-callout").waitFor({ state: "hidden", timeout: 1000 });
+  assert(Date.now() - trashedAt < 800, `${kind} trash was not instant`);
+  assert(await page.locator("#penalty-tag").count() === 0, `${kind} penalty stuck after trash`);
   assert(await page.locator(".ticket.current .chip.done").count() === 0, `${kind} did not restart`);
 }
 
@@ -297,12 +309,23 @@ try {
   await pressKey(desk, steps[1].key);
   await mistake(desk, { key: offKey, kind: "off-ticket" });
 
+  const cleanBefore = clockSeconds(await desk.locator("#time-val").innerText());
+  await pressKey(desk, "backspace");
+  assert((await desk.locator("#penalty-tag").count()) === 0, "clean trash showed a penalty");
+  assert(await desk.locator("#mistake-callout").isHidden(), "clean trash locked the line");
+  const cleanAfter = clockSeconds(await desk.locator("#time-val").innerText());
+  assert(cleanBefore - cleanAfter <= 1, `clean trash moved the clock ${cleanBefore} -> ${cleanAfter}`);
+  const resumed = Date.now();
+  await pressKey(desk, openKey);
+  await desk.locator(".ticket.current .chip.done").first().waitFor({ timeout: 800 });
+  assert(Date.now() - resumed < 800, "could not build immediately after trash");
+
   await desk.goto(`http://127.0.0.1:${port}/?seed=3&difficulty=hard`);
   await desk.locator("[data-action='play']").click();
   const hardSteps = await readSteps(desk);
   assert(hardSteps.length >= 4, "hard ticket too short");
   await pressKey(desk, hardSteps[0].key);
-  await mistake(desk, { key: hardSteps[2].key, kind: "out of order" });
+  await mistake(desk, { key: hardSteps[2].key, kind: "out of order", penalty: "-3.0s" });
   for (const step of hardSteps) await pressKey(desk, step.key);
   await desk.waitForFunction(() => /1/.test(document.querySelector("#quota-val")?.textContent || ""));
   const quota = (await desk.locator("#quota-val").innerText()).replace(/\s+/g, " ");
@@ -383,6 +406,36 @@ try {
   await mistake(hand, { tap: true, pan: phoneSteps[1].pan, kind: "phone ingredient before packaging" });
   await shot(hand, "phone-after-trash");
   await phone.close();
+
+  const burn = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const burnPage = await burn.newPage();
+  burnPage.on("pageerror", (err) => errors.push(`burn ${err.message}`));
+  await burnPage.goto(`http://127.0.0.1:${port}/?seed=9&difficulty=normal`);
+  await burnPage.locator("[data-action='play']").click();
+  const burnStarted = Date.now();
+  let burnedOut = false;
+  for (let i = 0; i < 40; i++) {
+    await pressKey(burnPage, "enter");
+    const over = burnPage.locator("section[data-screen='gameover']");
+    const tag = burnPage.locator("#penalty-tag");
+    await Promise.race([
+      over.waitFor({ state: "visible", timeout: 1500 }).catch(() => {}),
+      tag.waitFor({ state: "visible", timeout: 1500 }).catch(() => {}),
+    ]);
+    if (await over.isVisible()) {
+      burnedOut = true;
+      break;
+    }
+    assert((await tag.innerText()).trim() === "-2.5s", "burn penalty tag");
+    await pressKey(burnPage, "backspace");
+    await burnPage.locator("#mistake-callout").waitFor({ state: "hidden", timeout: 1000 });
+  }
+  assert(burnedOut, "repeated mistakes did not end the round");
+  assert(Date.now() - burnStarted < 20000, "penalty still waited out a lockout");
+  const burnText = await burnPage.locator("#failed-round").innerText();
+  assert(burnText.includes("failed"), burnText);
+  await shot(burnPage, "desktop-penalty");
+  await burn.close();
 
   const failed = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const failPage = await failed.newPage();

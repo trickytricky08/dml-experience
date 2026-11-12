@@ -25,6 +25,6 @@ export function formatPct(ratio) {
   return `${Math.round(ratio * 100)}%`;
 }
 
-export function formatLockout(ms) {
-  return `${(ms / 1000).toFixed(1)}s`;
+export function formatPenalty(ms) {
+  return `-${(ms / 1000).toFixed(1)}s`;
 }

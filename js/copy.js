@@ -36,12 +36,12 @@ export function nextRoundNote(rounds, index) {
   return `${next.label}: ${next.targetEntrees} tickets in ${secs}s${extra}.`;
 }
 
-export function buildHint(strictOrder, lockoutMs) {
-  const cost = (lockoutMs / 1000).toFixed(1);
+export function buildHint(strictOrder, penaltyMs) {
+  const cost = (penaltyMs / 1000).toFixed(1);
   if (strictOrder) {
-    return `Ingredients in ticket order. Wrong scoop, wrong packaging, out of order, or wrapping early? Hit Trash — it costs ${cost}s and you start this ticket over.`;
+    return `Ingredients in ticket order. Wrong scoop, wrong packaging, out of order, or wrapping early drops ${cost}s. Hit Trash and start this ticket over.`;
   }
-  return `Ingredients in any order (must be on the ticket). Wrong scoop, wrong packaging, or wrapping early? Hit Trash — it costs ${cost}s and you start this ticket over.`;
+  return `Ingredients in any order (must be on the ticket). Wrong scoop, wrong packaging, or wrapping early drops ${cost}s. Hit Trash and start this ticket over.`;
 }
 
 export function shareText({ completed, target, accuracyPct }) {

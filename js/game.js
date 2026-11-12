@@ -4,9 +4,9 @@ import { itemGroup, pansInRow } from "./menu.js";
 import { createRunDeal, parScoopCount, playerIngredients, takeRound } from "./tickets.js";
 import { applyInput, createPlay } from "./rules.js";
 import { accuracyRatio, scoreCompletedEntree, scoreRoundBonuses } from "./scoring.js";
-import { formatClock, formatInt, formatLockout, formatPct } from "./format.js";
+import { formatClock, formatInt, formatPenalty, formatPct } from "./format.js";
 import { buildHint, dealNote, nextRoundNote, shareText } from "./copy.js";
-import { homeChoice, screenAfterRound } from "./flow.js";
+import { clockDeltaForAction, deductMistakeTime, homeChoice, screenAfterRound } from "./flow.js";
 
 const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
 const requestedDifficulty = params.get("difficulty");
@@ -44,10 +44,6 @@ function frame(now) {
       ui.round.remainingMs = 0;
       finishRound("timeout");
     } else {
-      if (ui.round.mode === "lockout") {
-        ui.round.lockoutMs -= dt;
-        if (ui.round.lockoutMs <= 0) endLockout();
-      }
       paintClock();
     }
   }
@@ -163,7 +159,7 @@ function beginRound() {
     mode: "play",
     play: createPlay(tickets[0], { strictOrder: ui.run.difficulty.strictOrder }),
     ticketStartedAt: performance.now(),
-    lockoutMs: 0,
+    penaltyLabel: "",
     ended: false,
     endReason: null,
     bonuses: { perfect: 0, leftover: 0, total: 0 },
@@ -174,7 +170,6 @@ function beginRound() {
 
 function onAction(panId) {
   if (ui.confirm || ui.screen !== "playing" || !ui.round || ui.round.ended) return;
-  if (ui.round.mode === "lockout") return;
   const round = ui.round;
   const result = applyInput(round.play, panId);
   round.play = result.play;
@@ -190,9 +185,17 @@ function onAction(panId) {
   } else if (event.type === "mistake") {
     round.mistakes += 1;
     ui.run.mistakes += 1;
+    const penalty = clockDeltaForAction("mistake", { penaltyMs: ui.run.difficulty.mistakePenaltyMs });
+    const next = deductMistakeTime(round.remainingMs, penalty);
+    round.remainingMs = next.remainingMs;
+    round.penaltyLabel = formatPenalty(penalty);
     round.mode = "mistake";
+    if (next.timedOut) {
+      finishRound("timeout");
+      return;
+    }
   } else if (event.type === "trash") {
-    startLockout();
+    restartTicket();
     return;
   }
   render();
@@ -221,19 +224,12 @@ function completeTicket() {
   render();
 }
 
-function startLockout() {
+function restartTicket() {
   const round = ui.round;
-  round.mode = "lockout";
-  round.lockoutMs = ui.run.difficulty.trashLockoutMs;
-  round.play = createPlay(round.tickets[round.index], { strictOrder: ui.run.difficulty.strictOrder });
-  render();
-}
-
-function endLockout() {
-  const round = ui.round;
-  if (!round || round.mode !== "lockout" || round.ended) return;
+  if (!round || round.ended) return;
   round.mode = "play";
-  round.lockoutMs = 0;
+  round.penaltyLabel = "";
+  round.play = createPlay(round.tickets[round.index], { strictOrder: ui.run.difficulty.strictOrder });
   round.ticketStartedAt = performance.now();
   render();
 }
@@ -399,7 +395,7 @@ function renderPlay() {
   const upcoming = round.tickets[round.index + 1] || null;
   const play = round.play;
   const wrong = round.mode === "mistake" ? play.lastMistake?.panId : "";
-  const cost = formatLockout(run.difficulty.trashLockoutMs);
+  const penaltyMs = run.difficulty.mistakePenaltyMs;
   const accuracy = formatPct(accuracyRatio(run.correct, run.mistakes));
   return `<section class="screen screen-play" data-screen="play">
     <header class="hud">
@@ -410,7 +406,7 @@ function renderPlay() {
         <div class="stat"><span class="k">Round</span><span class="v">${run.roundIndex + 1} / ${run.difficulty.rounds.length}</span></div>
       </div>
       <div class="goal"><span class="k">Entrées</span><span class="v" id="quota-val">${round.completed} <em>of</em> ${round.tickets.length}</span></div>
-      <div class="timer"><span class="k">Time</span><span class="v${round.remainingMs <= 10000 ? " is-low" : ""}" id="time-val">${formatClock(round.remainingMs)}</span></div>
+      <div class="timer${round.mode === "mistake" ? " is-penalty" : ""}"><span class="k">Time</span><span class="v${round.remainingMs <= 10000 ? " is-low" : ""}" id="time-val">${formatClock(round.remainingMs)}</span>${round.mode === "mistake" ? `<span class="penalty-tag" id="penalty-tag">${esc(round.penaltyLabel)}</span>` : ""}</div>
     </header>
     <div class="stage">
       <div class="tickets">
@@ -420,13 +416,12 @@ function renderPlay() {
       <p class="deal-note">${esc(dealNote(run.difficulty, round.def))}</p>
       <div class="build-card">
         <h3>${esc(ticket.buildLabel)}</h3>
-        <div class="surface ${esc(ticket.surface)}">${round.mode === "lockout" ? "" : pills(play, run.difficulty.showNextHint)}</div>
-        <p class="build-hint">${esc(buildHint(run.difficulty.strictOrder, run.difficulty.trashLockoutMs))}</p>
+        <div class="surface ${esc(ticket.surface)}">${pills(play, run.difficulty.showNextHint)}</div>
+        <p class="build-hint">${esc(buildHint(run.difficulty.strictOrder, penaltyMs))}</p>
         <p id="mistake-callout" class="banner bad" role="alert"${round.mode === "mistake" ? "" : " hidden"}>Mistake, hit Trash</p>
-        <p id="lockout-note" class="banner wait"${round.mode === "lockout" ? "" : " hidden"}>Starting this ticket over</p>
       </div>
     </div>
-    ${renderLine(wrong, play, cost)}
+    ${renderLine(wrong, play)}
     ${ui.confirm ? confirmDialog() : ""}
   </section>`;
 }
@@ -571,7 +566,7 @@ function pills(play, showNextHint) {
   return parts.join("");
 }
 
-function renderLine(wrongId, play, cost) {
+function renderLine(wrongId, play) {
   const packButtons = (extraClass) => ["foil", "bowl", "container"].map((id) => {
     const label = id === "foil" ? "Foil" : id === "bowl" ? "Bowl" : "Container";
     const kind = id === "container" ? "box" : id;
@@ -612,17 +607,17 @@ function renderLine(wrongId, play, cost) {
           <span class="key">${keyCap("wrap")}</span>
           <span class="lbl">Wrap</span>
         </button>
-        <button type="button" class="trash-bin" data-pan="trash" aria-label="Trash, ${cost}">
+        <button type="button" class="trash-bin" data-pan="trash" aria-label="Trash, restarts this ticket">
           <span class="key">${keyCap("trash")}</span>
           <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 12h18M13 8h6v3H13z" fill="none" stroke="#F3E6D0" stroke-width="2" stroke-linecap="round"/><rect x="9" y="12" width="14" height="14" rx="2" fill="none" stroke="#F3E6D0" stroke-width="2"/><path d="M13 16v7M19 16v7" stroke="#F3E6D0" stroke-width="2" stroke-linecap="round"/></svg>
           <span class="lbl">Trash</span>
-          <span class="sub">${cost}</span>
+          <span class="sub">restarts</span>
         </button>
       </div>
     </div>
     <div class="phone-actions">
       <button type="button" class="${phoneWrapClass}" data-pan="wrap">Wrap</button>
-      <button type="button" class="phone-trash" data-pan="trash" aria-label="Trash, ${cost}, restarts this ticket">Trash <span class="cost">${cost}</span></button>
+      <button type="button" class="phone-trash" data-pan="trash" aria-label="Trash, restarts this ticket">Trash</button>
     </div>
   </div>`;
 }

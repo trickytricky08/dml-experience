@@ -1,6 +1,6 @@
 /**
  * Every tunable for Line Rush lives here: durations, quotas, ramp, scoring, keys.
- * Screens read this module; they do not hard-code round lengths or lockout times.
+ * Screens read this module; they do not hard-code round lengths or mistake penalties.
  */
 
 /** @typedef {"burrito"|"bowl"|"salad"|"tacos"|"quesadilla"} EntreeType */
@@ -89,9 +89,9 @@ export const GAME_CONFIG = {
   },
 
   difficulties: {
-    easy: { id: "easy", label: "Easy", trashLockoutMs: 2000, strictOrder: false, showNextHint: true, rounds: EASY_ROUNDS },
-    normal: { id: "normal", label: "Normal", trashLockoutMs: 2500, strictOrder: false, showNextHint: false, rounds: NORMAL_ROUNDS },
-    hard: { id: "hard", label: "Hard", trashLockoutMs: 3000, strictOrder: true, showNextHint: false, rounds: HARD_ROUNDS },
+    easy: { id: "easy", label: "Easy", mistakePenaltyMs: 2000, strictOrder: false, showNextHint: true, rounds: EASY_ROUNDS },
+    normal: { id: "normal", label: "Normal", mistakePenaltyMs: 2500, strictOrder: false, showNextHint: false, rounds: NORMAL_ROUNDS },
+    hard: { id: "hard", label: "Hard", mistakePenaltyMs: 3000, strictOrder: true, showNextHint: false, rounds: HARD_ROUNDS },
   },
 };
 

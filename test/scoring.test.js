@@ -4,7 +4,8 @@ import { GAME_CONFIG, KEY_MAP } from "../js/config.js";
 import { buildHint, dealNote, nextRoundNote, shareText } from "../js/copy.js";
 import { countdownSeconds, formatClock, fullSeconds } from "../js/format.js";
 import { hashString, resolveSeed } from "../js/rng.js";
-import { clockPaused, homeChoice, screenAfterRound } from "../js/flow.js";
+import { clockDeltaForAction, clockPaused, deductMistakeTime, homeChoice, screenAfterRound } from "../js/flow.js";
+import { formatPenalty } from "../js/format.js";
 import { accuracyRatio, scoreCompletedEntree, scoreRoundBonuses } from "../js/scoring.js";
 
 const scoring = GAME_CONFIG.scoring;
@@ -12,9 +13,10 @@ const scoring = GAME_CONFIG.scoring;
 test("difficulty table, keys, and scoring constants match the preset", () => {
   assert.equal(GAME_CONFIG.defaultDifficulty, "normal");
   assert.equal(GAME_CONFIG.storageBestKey, "dml.lineRush.best.v3");
-  assert.equal(GAME_CONFIG.difficulties.easy.trashLockoutMs, 2000);
-  assert.equal(GAME_CONFIG.difficulties.normal.trashLockoutMs, 2500);
-  assert.equal(GAME_CONFIG.difficulties.hard.trashLockoutMs, 3000);
+  assert.equal(GAME_CONFIG.difficulties.easy.mistakePenaltyMs, 2000);
+  assert.equal(GAME_CONFIG.difficulties.normal.mistakePenaltyMs, 2500);
+  assert.equal(GAME_CONFIG.difficulties.hard.mistakePenaltyMs, 3000);
+  assert.equal(formatPenalty(2500), "-2.5s");
   assert.equal(GAME_CONFIG.line.includeKidsMeals, false);
   assert.equal(GAME_CONFIG.line.includeLtoBrisket, true);
 
@@ -84,6 +86,23 @@ test("round bonuses: perfect accuracy and leftover seconds only when the quota i
   assert.equal(scoreRoundBonuses({ mistakes: 0, correct: 1, quotaHit: true, leftoverMs: 999, scoring }).leftover, 0);
 });
 
+test("a mistake deducts its penalty immediately, and Trash deducts nothing", () => {
+  assert.equal(clockDeltaForAction("mistake", { penaltyMs: 2500 }), 2500);
+  assert.equal(clockDeltaForAction("trash", { voluntary: true, penaltyMs: 2500 }), 0);
+  assert.equal(clockDeltaForAction("trash", { voluntary: false, penaltyMs: 2500 }), 0);
+  assert.equal(clockDeltaForAction("correct", { penaltyMs: 2500 }), 0);
+  assert.deepEqual(deductMistakeTime(60000, 2500), { remainingMs: 57500, timedOut: false });
+  assert.deepEqual(deductMistakeTime(2000, 2000), { remainingMs: 0, timedOut: true });
+  assert.deepEqual(deductMistakeTime(1000, 3000), { remainingMs: 0, timedOut: true });
+  assert.deepEqual(deductMistakeTime(0, 2500), { remainingMs: 0, timedOut: true });
+  for (const id of ["easy", "normal", "hard"]) {
+    const penalty = GAME_CONFIG.difficulties[id].mistakePenaltyMs;
+    const dipped = deductMistakeTime(penalty + 50, penalty);
+    assert.equal(dipped.remainingMs, 50);
+    assert.equal(dipped.timedOut, false);
+  }
+});
+
 test("a failed round ends the run, and Home quits without saving a best", () => {
   assert.equal(screenAfterRound("timeout"), "gameover");
   assert.equal(screenAfterRound("quota"), "roundEnd");
@@ -119,8 +138,10 @@ test("countdown, hints, and the round-3 heads-up", () => {
   assert.equal(nextRoundNote(rounds, 2), "That was the last round.");
   assert.match(dealNote(GAME_CONFIG.difficulties.normal, rounds[1]), /Normal/);
   assert.match(buildHint(false, 2500), /any order/);
-  assert.match(buildHint(false, 2500), /2\.5s/);
+  assert.match(buildHint(false, 2500), /drops 2\.5s/);
   assert.match(buildHint(false, 2500), /wrapping early/);
+  assert.match(buildHint(false, 2000), /drops 2\.0s/);
+  assert.match(buildHint(true, 3000), /drops 3\.0s/);
   assert.match(buildHint(true, 3000), /ticket order/);
   assert.match(buildHint(true, 3000), /out of order/);
   assert.match(buildHint(true, 3000), /wrapping early/);
