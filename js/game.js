@@ -1,12 +1,13 @@
 import { GAME_CONFIG, KEY_MAP, keyCap } from "./config.js";
 import { resolveSeed } from "./rng.js";
-import { itemGroup, pansInRow } from "./menu.js";
+import { pansInRow } from "./menu.js";
 import { createRunDeal, parScoopCount, playerIngredients, takeRound } from "./tickets.js";
 import { applyInput, createPlay } from "./rules.js";
 import { accuracyRatio, scoreCompletedEntree, scoreRoundBonuses } from "./scoring.js";
 import { formatClock, formatInt, formatPenalty, formatPct } from "./format.js";
 import { buildHint, dealNote, nextRoundNote, shareText } from "./copy.js";
 import { clockDeltaForAction, deductMistakeTime, homeChoice, screenAfterRound } from "./flow.js";
+import { layerModel, panSvg, sceneSvg } from "./art.js";
 
 const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
 const requestedDifficulty = params.get("difficulty");
@@ -169,7 +170,7 @@ function beginRound() {
 }
 
 function onAction(panId) {
-  if (ui.confirm || ui.screen !== "playing" || !ui.round || ui.round.ended) return;
+  if (ui.confirm || ui.screen !== "playing" || !ui.round || ui.round.ended || ui.round.sealing) return;
   const round = ui.round;
   const result = applyInput(round.play, panId);
   round.play = result.play;
@@ -213,6 +214,17 @@ function completeTicket() {
   ui.run.totalScore += scored.total;
   round.completed += 1;
   ui.run.totalCompleted += 1;
+  round.sealing = true;
+  render();
+  clearTimeout(ui.sealTimer);
+  ui.sealTimer = setTimeout(releaseSeal, 240);
+}
+
+function releaseSeal() {
+  const round = ui.round;
+  if (ui.screen !== "playing" || !round || !round.sealing) return;
+  round.sealing = false;
+  if (round.ended) return;
   if (round.completed >= round.tickets.length) {
     finishRound("quota");
     return;
@@ -237,6 +249,8 @@ function restartTicket() {
 function finishRound(reason) {
   const round = ui.round;
   if (!round || round.ended) return;
+  clearTimeout(ui.sealTimer);
+  round.sealing = false;
   round.ended = true;
   round.endReason = reason;
   round.remainingMs = Math.max(0, round.remainingMs);
@@ -320,6 +334,7 @@ function quitRun() {
 }
 
 function showTitle() {
+  clearTimeout(ui.sealTimer);
   ui.screen = "title";
   ui.confirm = false;
   ui.pauseStartedAt = 0;
@@ -416,7 +431,7 @@ function renderPlay() {
       <p class="deal-note">${esc(dealNote(run.difficulty, round.def))}</p>
       <div class="build-card">
         <h3>${esc(ticket.buildLabel)}</h3>
-        <div class="surface ${esc(ticket.surface)}">${pills(play, run.difficulty.showNextHint)}</div>
+        <div class="surface ${esc(ticket.surface)}">${buildScene(play, run.difficulty.showNextHint)}</div>
         <p class="build-hint">${esc(buildHint(run.difficulty.strictOrder, penaltyMs))}</p>
         <p id="mistake-callout" class="banner bad" role="alert"${round.mode === "mistake" ? "" : " hidden"}>Mistake, hit Trash</p>
       </div>
@@ -545,25 +560,27 @@ function chipState(step, play) {
   return "";
 }
 
-function pills(play, showNextHint) {
-  if (!play.opened) {
-    if (!showNextHint) return "";
-    return `<span class="scoop ghost">${esc(play.ticket.packaging.label)}?</span>`;
-  }
-  const parts = [`<span class="scoop pack">${esc(play.ticket.packaging.label)}</span>`];
-  for (const auto of play.ticket.autoScoops || []) {
-    parts.push(`<span class="scoop builtin" title="Already included">${esc(auto.label)}</span>`);
-  }
-  const byId = new Map(playerIngredients(play.ticket).map((step) => [step.id, step]));
-  for (const id of play.scooped) {
-    const step = byId.get(id);
-    parts.push(`<span class="scoop ${itemGroup(id)}">${esc(step?.label || id)}</span>`);
-  }
-  if (showNextHint && play.phase === "building") {
-    const next = playerIngredients(play.ticket).find((step) => !play.scooped.includes(step.id));
-    parts.push(`<span class="scoop ghost">${esc(next ? `${next.label}?` : "Wrap?")}</span>`);
-  }
-  return parts.join("");
+function buildScene(play, showNextHint) {
+  const ticket = play.ticket;
+  const wrapped = play.phase === "closed";
+  const model = layerModel({
+    opened: play.opened,
+    packaging: ticket.packaging.id,
+    builtinIds: (ticket.autoScoops || []).map((scoop) => scoop.id),
+    scooped: play.scooped,
+    wrapped,
+  });
+  const next = playerIngredients(ticket).find((step) => !play.scooped.includes(step.id));
+  const ghostId = showNextHint && play.opened && play.phase === "building" ? (next?.id || "") : "";
+  const scene = play.opened || wrapped ? sceneSvg(model, { ghostId, drop: true }) : "";
+  if (!showNextHint) return scene;
+  const hint = !play.opened
+    ? `${ticket.packaging.label}?`
+    : play.phase === "building"
+      ? `${next ? next.label : "Wrap"}?`
+      : "";
+  const chip = hint ? `<span class="scoop ghost">${esc(hint)}</span>` : "";
+  return `${scene}${chip}`;
 }
 
 function renderLine(wrongId, play) {
@@ -573,18 +590,18 @@ function renderLine(wrongId, play) {
     const classes = ["pack-btn", kind];
     if (id === wrongId) classes.push("is-wrong");
     if (play.opened && play.ticket.packaging.id === id) classes.push("is-open");
-    return `<button type="button" class="${classes.join(" ")} ${extraClass}" data-pan="${id}" aria-label="${label} (${keyCap(id)})"><span class="key">${keyCap(id)}</span><span class="lbl">${label}</span></button>`;
+    return `<button type="button" class="${classes.join(" ")} ${extraClass}" data-pan="${id}" aria-label="${label} (${keyCap(id)})"><span class="key">${keyCap(id)}</span>${panSvg(id, "pack-art")}<span class="lbl">${label}</span></button>`;
   }).join("");
   const shellButtons = pansInRow("shell", GAME_CONFIG).map((item) => {
     const classes = ["shell-btn"];
     if (item.id === wrongId) classes.push("is-wrong");
-    return `<button type="button" class="${classes.join(" ")}" data-pan="${item.id}" aria-label="${esc(item.panLabel)} (${keyCap(item.id)})"><span class="key">${keyCap(item.id)}</span><span class="lbl">${esc(item.panLabel)}</span></button>`;
+    return `<button type="button" class="${classes.join(" ")}" data-pan="${item.id}" aria-label="${esc(item.panLabel)} (${keyCap(item.id)})"><span class="key">${keyCap(item.id)}</span>${panSvg(item.id, "shell-art")}<span class="lbl">${esc(item.panLabel)}</span></button>`;
   }).join("");
   const row = (name) => pansInRow(name, GAME_CONFIG).map((item) => {
     const classes = ["pan"];
     if (item.id === wrongId) classes.push("is-wrong");
     const lto = item.lto ? `<span class="lto">LTO</span>` : "";
-    return `<button type="button" class="${classes.join(" ")}" data-pan="${item.id}" aria-label="${esc(item.panLabel)} (${keyCap(item.id)})"><span class="key">${keyCap(item.id)}</span>${lto}<span class="food ${item.food}"></span><span class="lbl">${esc(item.panLabel)}</span></button>`;
+    return `<button type="button" class="${classes.join(" ")}" data-pan="${item.id}" aria-label="${esc(item.panLabel)} (${keyCap(item.id)})"><span class="key">${keyCap(item.id)}</span>${lto}<span class="food">${panSvg(item.id)}</span><span class="lbl">${esc(item.panLabel)}</span></button>`;
   }).join("");
   const wrapClass = wrongId === "wrap" ? "wrap-btn is-wrong" : "wrap-btn";
   const phoneWrapClass = wrongId === "wrap" ? "phone-wrap is-wrong" : "phone-wrap";

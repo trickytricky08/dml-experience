@@ -62,7 +62,7 @@ async function pressKey(page, key) {
 }
 
 async function tapPan(page, pan) {
-  const loc = page.locator(`[data-pan="${pan}"]:visible`).first();
+  const loc = page.locator(`button[data-pan="${pan}"]:visible`).first();
   await loc.scrollIntoViewIfNeeded();
   await loc.click();
 }
@@ -250,6 +250,16 @@ try {
   await inView(page, "[data-action='home']");
   await inView(page, "[data-pan='white-rice']:visible");
   await shot(page, "desktop-play");
+  const preview = await readSteps(page);
+  await pressKey(page, preview[0].key);
+  await pressKey(page, preview[1].key);
+  await page.locator(".scene").waitFor();
+  const layers = await page.locator(".scene").getAttribute("data-layers");
+  assert(layers.startsWith(preview[0].pan), layers);
+  assert(layers.includes(preview[1].pan), layers);
+  await shot(page, "desktop-build");
+  await pressKey(page, "backspace");
+  await page.locator(".scene").waitFor({ state: "detached" });
 
   const notes = await finishRun(page, { tap: false });
   assert(notes.length === 3, `expected 3 round notes, got ${notes.join(" | ")}`);
@@ -373,6 +383,19 @@ try {
   await inView(hand, "#time-val");
   await inView(hand, ".ticket.current");
   await shot(hand, "phone-play");
+  const phonePreview = await readSteps(hand);
+  await tapPan(hand, phonePreview[0].pan);
+  await tapPan(hand, phonePreview[1].pan);
+  await hand.locator(".scene").waitFor();
+  await shot(hand, "phone-build");
+  const phoneLayers = await hand.locator(".scene").getAttribute("data-layers");
+  assert(phoneLayers.startsWith(phonePreview[0].pan), phoneLayers);
+  assert(phoneLayers.includes(phonePreview[1].pan), phoneLayers);
+  const wrapBox = await hand.locator(".phone-wrap").boundingBox();
+  const trashBox = await hand.locator(".phone-trash").boundingBox();
+  assert(wrapBox.width > trashBox.width * 1.4, `wrap ${wrapBox.width} trash ${trashBox.width}`);
+  await tapPan(hand, "trash");
+  await hand.locator(".scene").waitFor({ state: "detached" });
 
   const phoneNotes = await finishRun(hand, { tap: true });
   assert(phoneNotes.length === 3, phoneNotes.join(" | "));
