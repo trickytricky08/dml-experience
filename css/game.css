@@ -846,17 +846,24 @@ html[data-mode="lockout"] .phone-trash {
 
 /* ===== PHONE ===== */
 @media (min-width: 861px) {
-  .stage { gap: 2px; padding: 4px 14px 2px; }
-  .ticket { padding: 4px 10px 4px; }
-  .ticket .entree { font-size: 24px; }
-  .who { margin-bottom: 2px; font-size: 12px; }
-  .chips { gap: 3px; }
-  .chip { font-size: 11px; padding: 1px 6px; line-height: 1.2; }
+  .stage { gap: 6px; padding: 8px 14px 4px; overflow: hidden; }
+  .tickets { gap: 12px; }
+  .ticket { padding: 10px 14px 12px; }
+  .ticket.current { flex: 1.65; }
+  .ticket.current .entree { font-size: 38px; line-height: 0.92; }
+  .ticket.next { flex: 0 0 352px; }
+  .ticket.next .entree { font-size: 24px; line-height: 0.95; }
+  .who { margin-bottom: 8px; font-size: 12px; }
+  .who .guest { font-size: 18px; line-height: 1.1; }
+  .ticket.current .chips { gap: 6px; }
+  .ticket.current .chip { font-size: 16px; padding: 6px 12px; line-height: 1.2; }
+  .ticket.next .chips { gap: 5px; }
+  .ticket.next .chip { font-size: 14px; padding: 4px 10px; line-height: 1.2; }
   .deal-note { font-size: 11px; line-height: 1.2; }
-  .build-card { padding: 4px 10px 4px; }
-  .build-card h3 { margin: 0 0 2px; }
-  .surface { min-height: 276px; padding: 2px; }
-  .build-hint { margin: 2px 0 0; line-height: 1.25; }
+  .build-card { padding: 4px 12px 4px; min-height: 0; }
+  .build-card h3 { margin: 0 0 4px; }
+  .surface { min-height: 0; flex: 1 1 auto; padding: 2px; }
+  .build-hint { margin: 4px 0 0; line-height: 1.25; }
 }
 
 @media (max-width: 860px) {
