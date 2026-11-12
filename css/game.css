@@ -644,6 +644,20 @@ html[data-mode="lockout"] .phone-trash {
 .confirm-panel h1 { font-size: 32px; }
 
 /* ===== PHONE ===== */
+@media (min-width: 861px) {
+  .stage { gap: 2px; padding: 4px 14px 2px; }
+  .ticket { padding: 4px 10px 4px; }
+  .ticket .entree { font-size: 24px; }
+  .who { margin-bottom: 2px; font-size: 12px; }
+  .chips { gap: 3px; }
+  .chip { font-size: 11px; padding: 1px 6px; line-height: 1.2; }
+  .deal-note { font-size: 11px; line-height: 1.2; }
+  .build-card { padding: 4px 10px 4px; }
+  .build-card h3 { margin: 0 0 2px; }
+  .surface { min-height: 276px; padding: 2px; }
+  .build-hint { margin: 2px 0 0; line-height: 1.25; }
+}
+
 @media (max-width: 860px) {
   .awning { height: 52px; box-shadow: 0 8px 0 var(--burgundy-deep); }
   .awning::after { bottom: -12px; height: 12px; }
@@ -677,18 +691,20 @@ html[data-mode="lockout"] .phone-trash {
 
   .stage { gap: 6px; padding: 8px 10px 4px; flex: 0 1 auto; max-height: 44%; overflow: hidden; }
   .tickets { flex: 1 1 auto; min-height: 0; overflow: auto; }
-  .ticket { padding: 8px; }
-  .ticket.current .entree { font-size: 24px; }
+  .ticket { padding: 4px 8px 4px; }
+  .ticket.current .entree { font-size: 20px; }
+  .who { margin-bottom: 2px; }
+  .chips { gap: 3px; }
   .ticket.next { flex: 0 0 108px; }
   .ticket.next .entree { font-size: 15px; }
   .ticket.next .chips { display: none; }
   .ticket.next .who { flex-direction: column; align-items: flex-start; gap: 1px; margin-bottom: 0; }
   .ticket.next .peek { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-  .chip { font-size: 11px; padding: 2px 7px; }
+  .chip { font-size: 11px; padding: 1px 6px; }
   .deal-note { font-size: 11px; }
-  .build-card { flex: 0 0 auto; padding: 8px; }
-  .build-card h3 { margin-bottom: 6px; }
-  .surface { min-height: 108px; flex-direction: row; padding: 4px; }
+  .build-card { flex: 0 0 auto; padding: 6px 8px; }
+  .build-card h3 { margin-bottom: 4px; }
+  .surface { min-height: 122px; flex-direction: row; padding: 4px; }
   .build-hint { display: none; }
   .banner { font-size: 15px; margin-top: 6px; }
 
